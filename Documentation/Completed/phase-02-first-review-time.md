@@ -15,7 +15,7 @@ UI reference: [PR Cycle Time and First Review](../../Assets/mockups/04-pr-cycle-
 
 Add review-latency visibility after PR Cycle Time is working.
 
-**First Review Time** is elapsed time from **PR opened** (`openedAt`) to **first submitted review** (`firstReviewSubmittedAt`), in hours, for merged pull requests only.
+**First Review Time** is elapsed time from **PR opened** (`openedAt`) to the **first qualifying human review** (`firstReviewSubmittedAt`), in hours, for merged pull requests only.
 
 This phase adds a second computed metric and related UI. It does not change Phase 01 PR Cycle Time calculations or card behavior.
 
@@ -27,18 +27,20 @@ These defaults mirror Phase 01 conventions unless noted.
 |------|------------|
 | Population | Merged PRs in the selected range (`mergedAt` within range, same as Phase 01). |
 | Clock start | `openedAt` (include draft PRs; same as Phase 01). |
-| Clock end | `firstReviewSubmittedAt` — timestamp of the earliest qualifying review on that PR. |
-| Qualifying review | A GitHub **pull request review** with `state` in `APPROVED`, `CHANGES_REQUESTED`, or `COMMENTED` and a non-null `submitted_at`. |
+| Clock end | `firstReviewSubmittedAt` — timestamp of the earliest qualifying human review on that PR. |
+| Qualifying human review | A GitHub **pull request review** submitted by a human with `state` in `APPROVED`, `CHANGES_REQUESTED`, or `COMMENTED` and a non-null `submitted_at`. |
 | Excluded review states | `PENDING` and `DISMISSED` never count as the first review. |
 | Author self-review | A review submitted by the PR author **does** count (same as real GitHub activity; no author filtering). |
-| Bot reviews | Bot-submitted reviews **do** count (parity with Phase 01 bot inclusion). |
+| Bot reviews | Bot-submitted reviews **do not** enter First Review latency median, trend, or baseline calculations. They still count for the separate **merge-without-review hygiene** signal below. |
 | Review after merge | Reviews with `submitted_at` **after** `mergedAt` are ignored for first-review time and participation counts. |
-| No qualifying review | PR is **excluded from First Review median, trend, and team medians** but included in the **merge-without-review hygiene** signal below. |
+| No qualifying human review | PR is **excluded from First Review median, trend, baseline, and team medians** but included in the **merge-without-review hygiene** evaluation below. |
 | Aggregate | **Median** hours of First Review Time over the qualifying population (not mean). |
 | Previous period | Same 8-week immediately preceding window as Phase 01; trend/baseline rules below. |
 | Range label | Fixed **Last 8 weeks** until range selection is a separate roadmap item. |
 
 **Not in scope for the First Review median:** issue comments, review-thread replies without a submitted review, or “review requested” events with no submitted review.
+
+The first-qualifying-human-review rule is the shared qualification contract for the shipped trend and baseline calculations and the forthcoming FIX-004 comparison extension.
 
 ## Merge-without-review hygiene (separate signal)
 
@@ -46,7 +48,7 @@ Distinct from the First Review median — do not fold into median math.
 
 Flag merged PRs in range where **all** of the following hold:
 
-- `distinctReviewAuthors === 0` (no qualifying reviews from any user), and
+- `distinctReviewAuthors === 0` (no qualifying reviews from any account, including bots), and
 - `reviewCommentCount === 0` (diff review comments with `created_at < mergedAt` — see schema), and
 - `mergedAt - openedAt` is less than **7 minutes** (same threshold called out in the Phase 01 “how to read” copy).
 
@@ -143,7 +145,7 @@ Phase 02 is not complete without explicit tests. FEAT-002 must name tests up fro
 
 | Area | Required coverage |
 |------|-------------------|
-| Metric unit | `first_review_uses_earliest_submitted_review`; `dismissed_and_pending_ignored`; `review_after_merge_ignored`; `no_review_excluded_from_median`; `bot_and_author_reviews_count`; `merge_without_review_hygiene_rule`; `review_comment_count_excludes_post_merge` |
+| Metric unit | `first_review_uses_earliest_qualifying_human_review`; `dismissed_and_pending_ignored`; `review_after_merge_ignored`; `no_review_excluded_from_median`; `human_only_median_excludes_bot_reviews`; `merge_without_review_hygiene_rule`; `review_comment_count_excludes_post_merge` |
 | Exceptions unit | `review_latency_worsened_emitted`; `merge_without_review_without_qualifying_reviews`; `review_baseline_pending_emitted`; `review_exceptions_capped_at_three` |
 | Schema / migration | `migration_adds_review_columns`; `migration_applies_on_fresh_db` |
 | Sync integration | `review_sync_persists_first_review_timestamp`; `review_sync_persists_participation_counts`; `review_sync_recomputes_on_dismissed_review`; `per_repo_review_sync_error_isolated`; `last_review_synced_at_on_success_only` |
