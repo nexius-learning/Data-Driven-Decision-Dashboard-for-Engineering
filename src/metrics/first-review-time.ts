@@ -96,39 +96,92 @@ export type WeeklyMedianPoint = {
   medianHours: number | null
 }
 
+export type FirstReviewTrendPeriod = 'previous' | 'current'
+
+export type FirstReviewComparisonPoint = {
+  period: FirstReviewTrendPeriod
+  bucketIndex: number
+  bucketStart: string
+  bucketEnd: string
+  bucketLabel: string
+  medianHours: number | null
+}
+
+function addCalendarDays(d: Date, deltaDays: number): Date {
+  const x = new Date(d)
+  x.setDate(x.getDate() + deltaDays)
+  return x
+}
+
+function getCalendarWeekCount(range: DateRange): number {
+  let weeks = 1
+  while (addCalendarDays(range.start, weeks * 7).getTime() < range.end.getTime()) {
+    weeks += 1
+  }
+  return weeks
+}
+
 function formatLocalDate(d: Date): string {
-  const y = d.getUTCFullYear()
-  const m = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
   return `${y}-${m}-${day}`
 }
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000
+export function getFirstReviewComparisonWeeklyTrend(input: {
+  prs: PrAggregate[]
+  previous: DateRange
+  current: DateRange
+  weeks: number
+}): FirstReviewComparisonPoint[] {
+  const points: FirstReviewComparisonPoint[] = []
+
+  const appendPeriod = (period: FirstReviewTrendPeriod, range: DateRange) => {
+    for (let i = 0; i < input.weeks; i += 1) {
+      const bucketStart = addCalendarDays(range.start, i * 7)
+      const bucketEnd =
+        i === input.weeks - 1 ? new Date(range.end) : addCalendarDays(range.start, (i + 1) * 7)
+      const hours: number[] = []
+
+      for (const p of input.prs) {
+        if (p.firstQualifyingHumanReviewAt === null) continue
+        const mergedAt = p.mergedAt.getTime()
+        if (mergedAt < bucketStart.getTime() || mergedAt >= bucketEnd.getTime()) continue
+        hours.push(getFirstReviewHours(p, p.firstQualifyingHumanReviewAt))
+      }
+
+      points.push({
+        period,
+        bucketIndex: i + 1,
+        bucketStart: bucketStart.toISOString(),
+        bucketEnd: bucketEnd.toISOString(),
+        bucketLabel: formatLocalDate(bucketStart),
+        medianHours: hours.length === 0 ? null : median(hours),
+      })
+    }
+  }
+
+  appendPeriod('previous', input.previous)
+  appendPeriod('current', input.current)
+
+  return points
+}
 
 export function getFirstReviewWeeklyTrend(
   prs: PrAggregate[],
   range: DateRange,
+  weeks = getCalendarWeekCount(range),
 ): WeeklyMedianPoint[] {
-  const startMs = range.start.getTime()
-  const endMs = range.end.getTime()
-  const weeks = Math.max(1, Math.round((endMs - startMs) / WEEK_MS))
-  const points: WeeklyMedianPoint[] = []
-  for (let i = 0; i < weeks; i += 1) {
-    const wStart = new Date(startMs + i * WEEK_MS)
-    const wEnd = new Date(startMs + (i + 1) * WEEK_MS)
-    const hours: number[] = []
-    for (const p of prs) {
-      if (p.firstQualifyingHumanReviewAt === null) continue
-      const t = p.mergedAt.getTime()
-      if (t < wStart.getTime() || t >= wEnd.getTime()) continue
-      hours.push(getFirstReviewHours(p, p.firstQualifyingHumanReviewAt))
-    }
-    points.push({
-      weekStart: formatLocalDate(wStart),
-      medianHours: hours.length === 0 ? null : median(hours),
-    })
+  const previous = {
+    start: addCalendarDays(range.start, -weeks * 7),
+    end: new Date(range.start),
   }
-  return points
+  return getFirstReviewComparisonWeeklyTrend({ prs, previous, current: range, weeks })
+    .slice(weeks)
+    .map((point) => ({
+      weekStart: point.bucketLabel,
+      medianHours: point.medianHours,
+    }))
 }
 
 export function compareFirstReviewPeriods(input: {
