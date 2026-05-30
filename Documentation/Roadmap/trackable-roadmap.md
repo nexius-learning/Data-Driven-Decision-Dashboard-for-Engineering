@@ -1,7 +1,7 @@
 # Trackable Roadmap Checklist
 
 Status: Active
-Last updated: 2026-05-28
+Last updated: 2026-05-30
 
 ## How To Use This File
 
@@ -17,9 +17,15 @@ This is the execution checklist for humans and LLM agents.
 
 ## Current Next Step
 
-Next step: **Phase 04: Jira Flow Metrics**
+Scheduled stabilization gate before the next feature phase: **FIX-004: Remaining Dashboard 16-Week Trend Expansion**
 
-Detailed file: [phase-04-jira-flow-metrics.md](../Backlog/phase-04-jira-flow-metrics.md)
+FIX-004 plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
+
+FIX-004 authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Backlog/remaining-dashboard-16-week-trend-expansion-brief.md)
+
+Next feature phase: **Phase 04: Jira Flow Metrics**
+
+Phase 04 detailed file: [phase-04-jira-flow-metrics.md](../Backlog/phase-04-jira-flow-metrics.md)
 
 Phase 01 (complete): [phase-01-pr-cycle-time-mvp.md](../Completed/phase-01-pr-cycle-time-mvp.md) — implementation plan [FEAT-001-pr-cycle-time-mvp-implementation-plan.md](../Completed/FEAT-001-pr-cycle-time-mvp-implementation-plan.md).
 
@@ -108,6 +114,16 @@ Goal: detect oversized PR patterns.
 - [x] Distinguish completed-week trend from current-week-so-far with confidence notes and detached current marker.
 - [x] Show size metadata freshness.
 - [x] Verify the UI does not rank or shame individual authors.
+
+## FIX-004: Remaining Dashboard 16-Week Trend Expansion (Scheduled Stabilization Gate)
+
+Implementation plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
+
+Authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Backlog/remaining-dashboard-16-week-trend-expansion-brief.md)
+
+Goal: stabilize the existing dashboard trends before Phase 04 begins. Jira Flow Metrics remains the next feature phase.
+
+- [ ] Complete the scheduled FIX-004 dashboard stabilization work.
 
 ## Phase 04: Jira Flow Metrics
 
