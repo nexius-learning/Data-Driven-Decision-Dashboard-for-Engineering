@@ -15,12 +15,13 @@ type Props = {
   metric: FirstReviewMetric
 }
 
-export function FirstReviewTrendChart({ weeklyTrend, comparisonWeeklyTrend }: Props) {
+export function FirstReviewTrendChart({ weeklyTrend, comparisonWeeklyTrend, metric }: Props) {
   const durationValues = comparisonWeeklyTrend
     .map((p) => p.medianHours)
     .filter((value): value is number => value != null && Number.isFinite(value))
   const durationUnit = selectDurationUnit(durationValues.length > 0 ? Math.max(...durationValues) : null)
   const periodWeeks = comparisonWeeklyTrend.length / 2
+  const hasCurrentData = comparisonWeeklyTrend.slice(periodWeeks).some((point) => point.medianHours !== null)
   const title = `${comparisonWeeklyTrend.length}-week First Review comparison trend`
 
   return (
@@ -31,6 +32,18 @@ export function FirstReviewTrendChart({ weeklyTrend, comparisonWeeklyTrend }: Pr
         current {periodWeeks}-week segment. The muted dashed segment is the previous comparison period, the dark
         segment is the current dashboard period, and gaps mean no qualifying human-reviewed PRs in that bucket.
       </CardHowToRead>
+      {metric.baselineStatus === 'pending' ? (
+        <p className="pr-dashboard__baseline">
+          Previous-period points are shown for context and this history does not represent an available comparison
+          baseline.
+        </p>
+      ) : null}
+      {!hasCurrentData ? (
+        <p className="pr-dashboard__baseline">
+          The current period has no qualifying human-reviewed PRs; previous-period history is context, not current
+          performance.
+        </p>
+      ) : null}
       <WeeklyTrendChart
         valueMode="duration"
         weeklyTrend={weeklyTrend}

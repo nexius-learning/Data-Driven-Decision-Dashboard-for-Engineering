@@ -131,4 +131,63 @@ describe('FirstReviewTrendChart', () => {
     expect(list).toHaveTextContent('—')
     expect(list).toHaveTextContent('0h')
   })
+
+  it('first_review_chart_baseline_pending_note_marks_previous_points_as_context', () => {
+    const points = comparison()
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={{ ...metric, baselineStatus: 'pending' }}
+      />,
+    )
+
+    expect(screen.getByText(/Previous-period points are shown for context/i)).toBeInTheDocument()
+    expect(screen.getByText(/does not represent an available comparison baseline/i)).toBeInTheDocument()
+  })
+
+  it('first_review_chart_no_current_data_note_marks_history_as_context', () => {
+    const points = comparison()
+    points.slice(points.length / 2).forEach((point) => {
+      point.medianHours = null
+    })
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
+      />,
+    )
+
+    expect(screen.getByText(/previous-period history is context, not current performance/i)).toBeInTheDocument()
+  })
+
+  it('first_review_chart_available_baseline_with_current_data_omits_context_notes', () => {
+    const points = comparison()
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
+      />,
+    )
+
+    expect(screen.queryByText(/Previous-period points are shown for context/i)).toBeNull()
+    expect(screen.queryByText(/previous-period history is context, not current performance/i)).toBeNull()
+  })
+
+  it('first_review_chart_all_null_comparison_renders_safely', () => {
+    const points = comparison().map((point) => ({ ...point, medianHours: null }))
+
+    expect(() =>
+      render(
+        <FirstReviewTrendChart
+          weeklyTrend={currentHalf(points)}
+          comparisonWeeklyTrend={points}
+          metric={metric}
+        />,
+      ),
+    ).not.toThrow()
+    expect(screen.getByText(/previous-period history is context, not current performance/i)).toBeInTheDocument()
+  })
 })
