@@ -7,6 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import type { RepositoryCandidate } from '~/collector/repo-discovery'
 import { upsertRepositories } from '~/collector/repository-store'
+import { getDashboardDateRanges } from '~/config/env'
 import type { TeamMappingConfig } from '~/config/team-mapping'
 import { createDb, runMigrations } from '~/db/client'
 import { getPrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
@@ -52,14 +53,14 @@ describe('dashboard phase 02 integration', () => {
     process.env.TEAM_MAPPING_PATH = mappingPath
   })
 
-  async function makeRepo(syncedAt: Date | null) {
+  async function makeRepo(syncedAt: Date | null, repo = 'svc') {
     const cand: RepositoryCandidate = {
-      name: 'svc',
-      path: path.join(repoRoot, `svc-${randomUUID()}`),
+      name: repo,
+      path: path.join(repoRoot, `${repo}-${randomUUID()}`),
       rootPath: repoRoot,
-      remoteUrl: 'https://github.com/gde-mit/svc.git',
+      remoteUrl: `https://github.com/gde-mit/${repo}.git`,
       owner: 'gde-mit',
-      repo: 'svc',
+      repo,
     }
     await mkdir(cand.path, { recursive: true })
     await upsertRepositories(
@@ -77,6 +78,45 @@ describe('dashboard phase 02 integration', () => {
         .where(eq(repositories.id, r.id))
     }
     return r
+  }
+
+  async function insertReviewedPr(
+    repositoryId: string,
+    input: {
+      mergedAt: Date
+      openedAt?: Date
+      reviewHours?: number[]
+      number?: number
+    },
+  ) {
+    const number = input.number ?? 1
+    const openedAt = input.openedAt ?? new Date(input.mergedAt.getTime() - 24 * 60 * 60 * 1000)
+    const [pr] = await db
+      .insert(pullRequests)
+      .values({
+        repositoryId,
+        githubNodeId: `node-${randomUUID()}`,
+        number,
+        title: `PR ${number}`,
+        state: 'merged',
+        openedAt,
+        githubUpdatedAt: input.mergedAt,
+        mergedAt: input.mergedAt,
+        url: `https://github.com/gde-mit/svc/pull/${number}`,
+        missingJiraKey: false,
+      })
+      .returning()
+    for (const [index, hours] of (input.reviewHours ?? [2]).entries()) {
+      await db.insert(pullRequestReviews).values({
+        pullRequestId: pr.id,
+        githubReviewId: index + 1,
+        state: 'APPROVED',
+        submittedAt: new Date(openedAt.getTime() + hours * 60 * 60 * 1000),
+        authorLogin: `reviewer-${index}`,
+        authorType: 'User',
+        isBot: false,
+      })
+    }
   }
 
   it('payload_omits_firstReview_key_before_first_sync', async () => {
@@ -160,5 +200,68 @@ describe('dashboard phase 02 integration', () => {
     const out = await getPrCycleTimeDashboard({ db, now: new Date('2026-04-30T00:00:00Z') })
     expect(out.firstReview).toBeUndefined()
     expect(out.reviewMetricsPending).toBeDefined()
+  })
+
+  it('dashboard_first_review_exposes_default_16_point_comparison', async () => {
+    await makeRepo(new Date('2026-04-28T00:00:00Z'))
+    const out = await getPrCycleTimeDashboard({ db, now: new Date('2026-04-30T00:00:00Z') })
+    expect(out.firstReview?.comparisonWeeklyTrend).toHaveLength(16)
+    expect(out.firstReview?.comparisonWeeklyTrend.map((p) => p.period)).toEqual([
+      ...Array(8).fill('previous'),
+      ...Array(8).fill('current'),
+    ])
+    expect(out.firstReview?.comparisonWeeklyTrend.map((p) => p.bucketIndex)).toEqual([
+      1, 2, 3, 4, 5, 6, 7, 8, 1, 2, 3, 4, 5, 6, 7, 8,
+    ])
+  })
+
+  it('dashboard_first_review_exposes_8_point_comparison_for_four_week_range', async () => {
+    await makeRepo(new Date('2026-04-28T00:00:00Z'))
+    const out = await getPrCycleTimeDashboard({
+      db,
+      now: new Date('2026-04-30T00:00:00Z'),
+      weeks: 4,
+    })
+    expect(out.firstReview?.comparisonWeeklyTrend).toHaveLength(8)
+  })
+
+  it('dashboard_first_review_weekly_trend_matches_current_comparison_half', async () => {
+    await makeRepo(new Date('2026-04-28T00:00:00Z'))
+    const out = await getPrCycleTimeDashboard({ db, now: new Date('2026-04-30T00:00:00Z') })
+    expect(out.firstReview?.weeklyTrend).toEqual(
+      out.firstReview?.comparisonWeeklyTrend.slice(8).map((point) => ({
+        weekStart: point.bucketLabel,
+        medianHours: point.medianHours,
+      })),
+    )
+  })
+
+  it('dashboard_first_review_comparison_excludes_unsynced_repositories', async () => {
+    const now = new Date('2026-04-30T00:00:00Z')
+    const { current } = getDashboardDateRanges(now, 8)
+    const syncedRepo = await makeRepo(new Date('2026-04-28T00:00:00Z'), 'svc-synced')
+    const unsyncedRepo = await makeRepo(null, 'svc-unsynced')
+    await db
+      .update(repositories)
+      .set({ active: true, scanStatus: 'ready' })
+      .where(eq(repositories.id, syncedRepo.id))
+    await insertReviewedPr(unsyncedRepo.id, {
+      mergedAt: new Date(current.from.getTime() + 12 * 60 * 60 * 1000),
+      reviewHours: [7],
+    })
+    const out = await getPrCycleTimeDashboard({ db, now })
+    expect(out.firstReview?.comparisonWeeklyTrend.every((p) => p.medianHours === null)).toBe(true)
+  })
+
+  it('dashboard_first_review_comparison_uses_first_qualifying_human_review', async () => {
+    const now = new Date('2026-04-30T00:00:00Z')
+    const { current } = getDashboardDateRanges(now, 8)
+    const repo = await makeRepo(new Date('2026-04-28T00:00:00Z'))
+    await insertReviewedPr(repo.id, {
+      mergedAt: new Date(current.from.getTime() + 12 * 60 * 60 * 1000),
+      reviewHours: [9, 3],
+    })
+    const out = await getPrCycleTimeDashboard({ db, now })
+    expect(out.firstReview?.comparisonWeeklyTrend[8]?.medianHours).toBe(3)
   })
 })

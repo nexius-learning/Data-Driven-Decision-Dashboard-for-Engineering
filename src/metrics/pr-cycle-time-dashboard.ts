@@ -23,7 +23,8 @@ import {
   buildPrAggregate,
   compareFirstReviewPeriods,
   computeFirstReviewMedian,
-  getFirstReviewWeeklyTrend,
+  getFirstReviewComparisonWeeklyTrend,
+  type FirstReviewComparisonPoint,
   type PrAggregate,
   type PrWithReviews,
   type ReviewRow,
@@ -106,6 +107,7 @@ export type FirstReview = {
   metric: FirstReviewMetric
   exceptions: FirstReviewException[]
   weeklyTrend: Array<{ weekStart: string; medianHours: number | null }>
+  comparisonWeeklyTrend: FirstReviewComparisonPoint[]
   teamBreakdown: FirstReviewTeamRow[]
 }
 
@@ -598,7 +600,16 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     range: currentRange,
   })
 
-  const firstReviewWeekly = getFirstReviewWeeklyTrend(currentAggs, currentRange)
+  const firstReviewComparisonWeekly = getFirstReviewComparisonWeeklyTrend({
+    prs: aggregates,
+    previous: previousRange,
+    current: currentRange,
+    weeks: current.weeks,
+  })
+  const firstReviewWeekly = firstReviewComparisonWeekly.slice(current.weeks).map((point) => ({
+    weekStart: point.bucketLabel,
+    medianHours: point.medianHours,
+  }))
 
   const teamLabelsFR = new Set<string>()
   for (const a of currentAggs) teamLabelsFR.add(a.team)
@@ -659,6 +670,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     },
     exceptions: firstReviewExceptions,
     weeklyTrend: firstReviewWeekly,
+    comparisonWeeklyTrend: firstReviewComparisonWeekly,
     teamBreakdown: getFirstReviewTeamBreakdown({ teams: teamAggs }),
   }
 

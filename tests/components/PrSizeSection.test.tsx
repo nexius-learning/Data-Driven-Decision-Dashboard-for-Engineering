@@ -49,6 +49,7 @@ function firstReview(): FirstReview {
       weekStart: `2026-0${1 + i}-01`,
       medianHours: null,
     })),
+    comparisonWeeklyTrend: [],
     teamBreakdown: [],
   }
 }
