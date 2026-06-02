@@ -14,6 +14,7 @@
     "verify:phase01": "npm run lint && npm run typecheck && npm run build && npm run test -- --coverage && npm run test:e2e",
     "verify:phase02": "npm run lint && npm run typecheck && vitest run --coverage --config vitest.config.phase02.ts && playwright test --grep @phase02",
     "verify:phase03": "npm run lint && npm run typecheck && TZ=America/Los_Angeles npm run test -- tests/metrics/pr-size-metric-utc-boundary.test.ts && vitest run --coverage --config vitest.config.phase03.ts && playwright test --grep @phase03",
+    "verify:fix004": "git diff --check && npm run lint && npm run typecheck && npm run build && npm run test -- --coverage && npm run test:e2e -- tests/e2e/remaining-dashboard-trend-expansion.spec.ts && npm run verify:phase01 && npm run verify:phase02 && npm run verify:phase03",
     "stack:up": "bash scripts/dev-up.sh",
     "stack:down": "bash scripts/dev-down.sh",
     "db:up": "docker compose up -d --wait",

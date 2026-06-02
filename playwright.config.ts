@@ -16,7 +16,7 @@ if (!process.env.DATABASE_URL?.trim()) {
 process.env.DASHBOARD_REPO_ROOT ??= path.join(repoRoot, '.tmp/e2e-empty-repo-root')
 process.env.TEAM_MAPPING_PATH ??= path.join(repoRoot, 'config/team-mapping.example.json')
 
-const testIgnore = ['**/live-github-sync.spec.ts', '**/live-current-server.spec.ts']
+const testIgnore = ['**/live-github-sync.spec.ts', '**/live-current-server.spec.ts', '**/*.fixture.test.ts']
 
 export default defineConfig({
   testDir: './tests/e2e',

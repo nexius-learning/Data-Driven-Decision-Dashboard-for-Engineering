@@ -17,7 +17,7 @@ describe('FEAT-003 finalization docs', () => {
   it('docs_trackable_roadmap_marks_phase_03_implemented', () => {
     const body = read('Documentation/Roadmap/trackable-roadmap.md')
     expect(body).toMatch(/Phase 03: PR Size \(Implemented\)/)
-    const phase03Section = body.split('## Phase 03: PR Size')[1]?.split('## Phase 04')[0]
+    const phase03Section = body.split('## Phase 03: PR Size')[1]?.split('## FIX-004')[0]
     expect(phase03Section, 'phase 03 section exists in trackable roadmap').toBeDefined()
     expect(phase03Section!).not.toMatch(/- \[ \]/)
   })

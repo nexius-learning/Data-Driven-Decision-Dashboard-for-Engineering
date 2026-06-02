@@ -44,9 +44,9 @@ describe('phase 02 first review time spec', () => {
   it('docs_phase_02_defines_metric_locks', () => {
     const body = readDoc(phase02)
     expect(body).toMatch(/## Metric definition \(locked\)/)
-    expect(body).toMatch(/Qualifying review/)
+    expect(body).toMatch(/Qualifying human review/)
     expect(body).toMatch(/PENDING.*DISMISSED|DISMISSED.*PENDING/)
-    expect(body).toMatch(/No qualifying review/)
+    expect(body).toMatch(/No qualifying human review/)
   })
 
   it('docs_phase_02_links_feat_002_placeholder', () => {
