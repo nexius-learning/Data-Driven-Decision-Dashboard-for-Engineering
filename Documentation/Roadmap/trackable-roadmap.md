@@ -1,7 +1,7 @@
 # Trackable Roadmap Checklist
 
 Status: Active
-Last updated: 2026-05-30
+Last updated: 2026-06-02
 
 ## How To Use This File
 
@@ -17,7 +17,7 @@ This is the execution checklist for humans and LLM agents.
 
 ## Current Next Step
 
-Scheduled stabilization gate before the next feature phase: **FIX-004: Remaining Dashboard 16-Week Trend Expansion**
+Completed stabilization gate before the next feature phase: **FIX-004: Remaining Dashboard 16-Week Trend Expansion**
 
 FIX-004 plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
 
@@ -115,7 +115,7 @@ Goal: detect oversized PR patterns.
 - [x] Show size metadata freshness.
 - [x] Verify the UI does not rank or shame individual authors.
 
-## FIX-004: Remaining Dashboard 16-Week Trend Expansion (Scheduled Stabilization Gate)
+## FIX-004: Remaining Dashboard 16-Week Trend Expansion (Completed Stabilization Gate)
 
 Implementation plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
 
@@ -123,7 +123,7 @@ Authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../B
 
 Goal: stabilize the existing dashboard trends before Phase 04 begins. Jira Flow Metrics remains the next feature phase.
 
-- [ ] Complete the scheduled FIX-004 dashboard stabilization work.
+- [x] Complete the scheduled FIX-004 dashboard stabilization work.
 
 ## Phase 04: Jira Flow Metrics
 

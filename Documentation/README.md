@@ -39,7 +39,7 @@ The first release shows one metric only: PR Cycle Time.
 
 Phase 03 (PR Size) is implemented, including the PR Size trend confidence update (FIX-002): completed-week trend values are shown separately from current-week-so-far and low-sample confidence notes (see [FEAT-003-pr-size-implementation-plan.md](Backlog/FEAT-003-pr-size-implementation-plan.md)).
 
-Before Phase 04 begins, complete the explicitly scheduled [FIX-004 dashboard stabilization gate](Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md), guided by its [authoritative brief](Backlog/remaining-dashboard-16-week-trend-expansion-brief.md). Phase 04 remains the next feature phase: [Phase 04: Jira Flow Metrics](Backlog/phase-04-jira-flow-metrics.md).
+The explicitly scheduled [FIX-004 dashboard stabilization gate](Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md) is complete, guided by its [authoritative brief](Backlog/remaining-dashboard-16-week-trend-expansion-brief.md). Phase 04 remains the next feature phase: [Phase 04: Jira Flow Metrics](Backlog/phase-04-jira-flow-metrics.md).
 
 Current one-page UI reference:
 
