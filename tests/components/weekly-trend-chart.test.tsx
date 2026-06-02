@@ -875,10 +875,37 @@ describe('WeeklyTrendChart', () => {
           { weekStart: '2026-04-06', medianHours: 1 },
           { weekStart: '2026-04-13', medianHours: 2 },
         ]}
+        comparisonWeeklyTrend={[
+          {
+            period: 'previous',
+            bucketIndex: 1,
+            bucketStart: '2026-03-30T00:00:00.000Z',
+            bucketEnd: '2026-04-06T00:00:00.000Z',
+            bucketLabel: '2026-03-30',
+            medianHours: 1,
+          },
+          {
+            period: 'current',
+            bucketIndex: 1,
+            bucketStart: '2026-04-06T00:00:00.000Z',
+            bucketEnd: '2026-04-13T00:00:00.000Z',
+            bucketLabel: '2026-04-06',
+            medianHours: 2,
+          },
+        ]}
+        metric={{
+          medianHours: 2,
+          previousMedianHours: 1,
+          qualifyingPrCount: 1,
+          mergedPrCountInSyncedRepos: 1,
+          trendPercent: 100,
+          baselineStatus: 'pending',
+          botShare: null,
+        }}
       />,
     )
 
-    expect(screen.getByRole('img', { name: '8-week First Review trend' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: '2-week First Review comparison trend' })).toBeTruthy()
     expect(screen.queryByText(/PR size/i)).toBeNull()
     expect(screen.queryByText(/so far/i)).toBeNull()
     expect(document.querySelector('.pr-dashboard__chart-point--detached')).toBeNull()

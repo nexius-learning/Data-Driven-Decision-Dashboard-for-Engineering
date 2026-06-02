@@ -1,83 +1,134 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, render, screen } from '@testing-library/react'
+import type { FirstReviewMetric } from '~/metrics/pr-cycle-time-dashboard'
+import type { FirstReviewComparisonPoint } from '~/metrics/first-review-time'
 import { FirstReviewTrendChart } from '~/components/dashboard/FirstReviewTrendChart'
+import { WeeklyTrendChart } from '~/components/dashboard/weekly-trend-chart'
 
-afterEach(cleanup)
+vi.mock('~/components/dashboard/weekly-trend-chart', () => ({
+  WeeklyTrendChart: vi.fn(() => null),
+}))
+
+const MockedWeeklyTrendChart = vi.mocked(WeeklyTrendChart)
+
+const metric: FirstReviewMetric = {
+  medianHours: 5,
+  previousMedianHours: 4,
+  qualifyingPrCount: 3,
+  mergedPrCountInSyncedRepos: 5,
+  trendPercent: 25,
+  baselineStatus: 'available',
+  botShare: null,
+}
+
+function comparison(weeks = 8): FirstReviewComparisonPoint[] {
+  return Array.from({ length: weeks * 2 }, (_, i) => ({
+    period: i < weeks ? ('previous' as const) : ('current' as const),
+    bucketIndex: (i % weeks) + 1,
+    bucketStart: `2026-04-${String(i + 1).padStart(2, '0')}T00:00:00.000Z`,
+    bucketEnd: `2026-04-${String(i + 2).padStart(2, '0')}T00:00:00.000Z`,
+    bucketLabel: `2026-04-${String(i + 1).padStart(2, '0')}`,
+    medianHours: i === 1 ? null : i,
+  }))
+}
+
+function currentHalf(points: FirstReviewComparisonPoint[]) {
+  return points.slice(points.length / 2).map((point) => ({
+    weekStart: point.bucketLabel,
+    medianHours: point.medianHours,
+  }))
+}
+
+afterEach(() => {
+  cleanup()
+  vi.clearAllMocks()
+})
 
 describe('FirstReviewTrendChart', () => {
-  it('trend_chart_renders_with_null_weeks_when_M_zero', () => {
-    const data = Array.from({ length: 8 }, (_, i) => ({
-      weekStart: `2026-0${1 + i}-01`,
-      medianHours: null,
-    }))
-    render(<FirstReviewTrendChart weeklyTrend={data} />)
-    expect(screen.getByTestId('first-review-trend')).toBeTruthy()
-    expect(screen.getByRole('heading', { level: 3, name: '8-week First Review trend' })).toBeTruthy()
-  })
-
-  it('trend_chart_renders_eight_buckets', () => {
-    const data = Array.from({ length: 8 }, (_, i) => ({
-      weekStart: `2026-0${1 + i}-01`,
-      medianHours: i,
-    }))
-    render(<FirstReviewTrendChart weeklyTrend={data} />)
-    const items = screen.getAllByRole('listitem')
-    expect(items).toHaveLength(8)
-  })
-
-  it('first_review_trend_remains_8_week_duration_chart', () => {
-    const data = Array.from({ length: 8 }, (_, i) => ({
-      weekStart: `2026-0${1 + i}-01`,
-      medianHours: i + 1,
-    }))
-    render(<FirstReviewTrendChart weeklyTrend={data} />)
-
-    expect(screen.getByRole('img', { name: '8-week First Review trend' })).toBeTruthy()
-    expect(document.querySelector('[data-testid="comparison-boundary-divider"]')).toBeNull()
-    expect(document.querySelector('[data-period="previous"]')).toBeNull()
-  })
-
-  it('first_review_trend_uses_hours_for_hour_scale_values', () => {
+  it('first_review_chart_renders_default_16_week_comparison_title_and_aria', () => {
+    const points = comparison()
     render(
       <FirstReviewTrendChart
-        weeklyTrend={[
-          { weekStart: '2026-04-06', medianHours: 1 },
-          { weekStart: '2026-04-13', medianHours: 12.5 },
-        ]}
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
       />,
     )
 
-    expect(screen.getByText('Hours')).toBeTruthy()
-    expect(screen.getAllByText('12.5h')).toHaveLength(2)
+    const title = '16-week First Review comparison trend'
+    expect(screen.getByRole('heading', { level: 3, name: title })).toBeTruthy()
+    expect(screen.getByTestId('first-review-trend')).toHaveAttribute('aria-label', title)
+    expect(MockedWeeklyTrendChart).toHaveBeenCalledWith(
+      expect.objectContaining({ ariaLabel: title }),
+      undefined,
+    )
   })
 
-  it('first_review_sr_trend_preserves_null_vs_zero_duration', () => {
+  it('first_review_chart_renders_dynamic_8_week_copy_for_four_week_range', () => {
+    const points = comparison(4)
     render(
       <FirstReviewTrendChart
-        weeklyTrend={[
-          { weekStart: '2026-04-06', medianHours: null },
-          { weekStart: '2026-04-13', medianHours: 0 },
-        ]}
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
+      />,
+    )
+
+    expect(screen.getByText('8-week First Review comparison trend')).toBeTruthy()
+    expect(screen.getByText(/previous 4-week segment followed by the current 4-week segment/i)).toBeTruthy()
+  })
+
+  it('first_review_chart_passes_comparison_trend_opt_in', () => {
+    const points = comparison()
+    const weeklyTrend = currentHalf(points)
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={weeklyTrend}
+        comparisonWeeklyTrend={points}
+        metric={metric}
+      />,
+    )
+
+    expect(MockedWeeklyTrendChart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valueMode: 'duration',
+        weeklyTrend,
+        comparisonTrend: points,
+      }),
+      undefined,
+    )
+  })
+
+  it('first_review_chart_accessible_list_contains_previous_then_current_points', () => {
+    const points = comparison(4)
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
+      />,
+    )
+
+    const items = screen.getAllByRole('listitem')
+    expect(items).toHaveLength(8)
+    expect(items[0]).toHaveTextContent('previous')
+    expect(items[4]).toHaveTextContent('current')
+  })
+
+  it('first_review_chart_accessible_list_preserves_null_vs_zero', () => {
+    const points = comparison(2)
+    points[0]!.medianHours = null
+    points[1]!.medianHours = 0
+    render(
+      <FirstReviewTrendChart
+        weeklyTrend={currentHalf(points)}
+        comparisonWeeklyTrend={points}
+        metric={metric}
       />,
     )
 
     const list = screen.getByTestId('first-review-weekly-trend-list')
     expect(list).toHaveTextContent('—')
-    expect(list).toHaveTextContent('0m')
-  })
-
-  it('first_review_sr_uses_one_day_unit_for_mixed_values', () => {
-    render(
-      <FirstReviewTrendChart
-        weeklyTrend={[
-          { weekStart: '2026-04-06', medianHours: 0.5 },
-          { weekStart: '2026-04-13', medianHours: 48 },
-        ]}
-      />,
-    )
-
-    expect(screen.getByText('Days')).toBeTruthy()
-    expect(screen.getAllByText('0.02d')).toHaveLength(2)
-    expect(screen.getAllByText('2d')).toHaveLength(2)
+    expect(list).toHaveTextContent('0h')
   })
 })
