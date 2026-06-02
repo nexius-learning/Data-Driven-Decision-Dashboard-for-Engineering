@@ -40,6 +40,8 @@ export type WeeklyTrendChartProps =
       valueMode: 'lines'
       weeklyTrend: WeeklyTrendLinesPoint[]
       detachedPoint?: DetachedLinesPoint
+      comparisonPeriodWeeks?: number
+      comparisonLabels?: { previous: string; current: string }
       ariaLabel?: string
       yAxisLabel?: string
     }
@@ -146,6 +148,16 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
     !linesMode && props.comparisonTrend && isValidComparisonTrend(props.comparisonTrend)
       ? props.comparisonTrend
       : undefined
+  const lineComparisonBucketCount =
+    linesMode &&
+    props.comparisonPeriodWeeks != null &&
+    Number.isInteger(props.comparisonPeriodWeeks) &&
+    props.comparisonPeriodWeeks > 0 &&
+    props.comparisonPeriodWeeks * 2 === props.weeklyTrend.length
+      ? props.comparisonPeriodWeeks
+      : undefined
+  const comparisonLabels = linesMode ? props.comparisonLabels : undefined
+  const hasComparisonPresentation = comparisonTrend != null || lineComparisonBucketCount != null
   const weeklyTrend = comparisonTrend ?? props.weeklyTrend
   const detachedPoint = linesMode ? props.detachedPoint : undefined
   const ariaLabel =
@@ -195,23 +207,28 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
   }
 
   const comparisonPts: ComparisonPt[] =
-    comparisonTrend == null
+    !hasComparisonPresentation
       ? []
-      : pts.map((p) => ({ ...p, period: comparisonTrend[p.i]!.period }))
+      : pts.map((p) => ({
+          ...p,
+          period:
+            comparisonTrend?.[p.i]?.period ??
+            (p.i < lineComparisonBucketCount! ? 'previous' : 'current'),
+        }))
   const latestCurrentPoint = comparisonPts.filter((p) => p.period === 'current').at(-1)
-  const plainPts = comparisonTrend == null ? pts : []
-  const comparisonBucketCount = comparisonTrend ? comparisonTrend.length / 2 : 0
+  const plainPts = hasComparisonPresentation ? [] : pts
+  const comparisonBucketCount = comparisonTrend ? comparisonTrend.length / 2 : (lineComparisonBucketCount ?? 0)
   const comparisonBoundaryIndex = comparisonBucketCount - 0.5
-  const previousLabelX = comparisonTrend ? xAt((comparisonBucketCount - 1) / 2) : 0
-  const currentLabelX = comparisonTrend ? xAt(comparisonBucketCount + (comparisonBucketCount - 1) / 2) : 0
+  const previousLabelX = hasComparisonPresentation ? PAD_L : 0
+  const currentLabelX = hasComparisonPresentation ? VB_W - PAD_R : 0
   const comparisonAxisLabelIndexes =
-    comparisonTrend == null
+    !hasComparisonPresentation
       ? []
-      : [0, comparisonBucketCount, comparisonTrend.length - 1].filter(
+      : [0, comparisonBucketCount, weeklyTrend.length - 1].filter(
           (value, index, values) => values.indexOf(value) === index,
         )
   const plainAxisLabelIndexes =
-    comparisonTrend == null && linesMode
+    !hasComparisonPresentation && linesMode
       ? new Set(visiblePlainLineAxisLabelIndexes(weeklyTrend.length))
       : null
 
@@ -300,7 +317,7 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           />
         ))}
 
-        {comparisonTrend ? (
+        {hasComparisonPresentation ? (
           <>
             <line
               data-testid="comparison-boundary-divider"
@@ -312,11 +329,11 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
               strokeWidth="1"
               strokeDasharray="3 4"
             />
-            <text data-testid="comparison-label-previous" x={previousLabelX} y={30} fill="#6b7280" fontSize="10" fontWeight="600" textAnchor="middle">
-              Previous {comparisonBucketCount} weeks
+            <text data-testid="comparison-label-previous" x={previousLabelX} y={30} fill="#6b7280" fontSize="10" fontWeight="600" textAnchor="start">
+              {comparisonLabels?.previous ?? `Previous ${comparisonBucketCount} weeks`}
             </text>
-            <text data-testid="comparison-label-current" x={currentLabelX} y={30} fill="#111827" fontSize="10" fontWeight="600" textAnchor="middle">
-              Current {comparisonBucketCount} weeks
+            <text data-testid="comparison-label-current" x={currentLabelX} y={30} fill="#111827" fontSize="10" fontWeight="600" textAnchor="end">
+              {comparisonLabels?.current ?? `Current ${comparisonBucketCount} weeks`}
             </text>
             <g data-period="previous">
               {comparisonPathSegments
@@ -389,7 +406,7 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           </>
         ) : null}
 
-        {comparisonTrend == null && pts.map((p, idx) => {
+        {!hasComparisonPresentation && pts.map((p, idx) => {
           const isLast = idx === pts.length - 1
           return (
             <g key={p.i}>
@@ -455,7 +472,7 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           </g>
         ) : null}
 
-        {comparisonTrend == null && weeklyTrend.map((p, i) => (
+        {!hasComparisonPresentation && weeklyTrend.map((p, i) => (
           plainAxisLabelIndexes == null || plainAxisLabelIndexes.has(i) ? (
           <text
             key={'weekStart' in p ? p.weekStart : p.bucketStart}
@@ -471,9 +488,12 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           ) : null
         ))}
 
-        {comparisonTrend ? comparisonAxisLabelIndexes.map((i) => (
+        {hasComparisonPresentation ? comparisonAxisLabelIndexes.map((i) => {
+          const point = weeklyTrend[i]!
+          const label = 'weekStart' in point ? point.weekStart : point.bucketLabel
+          return (
           <text
-            key={comparisonTrend[i]!.bucketLabel}
+            key={label}
             x={xAt(i)}
             y={VB_H - 12}
             fill="#6b7280"
@@ -481,9 +501,10 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
             fontWeight="500"
             textAnchor="middle"
           >
-            {shortWeekLabel(comparisonTrend[i]!.bucketLabel)}
+            {shortWeekLabel(label)}
           </text>
-        )) : null}
+          )
+        }) : null}
 
         {detachedPoint && detachedX != null ? (
           <text

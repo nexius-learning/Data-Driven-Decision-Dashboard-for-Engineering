@@ -643,6 +643,60 @@ describe('WeeklyTrendChart', () => {
     expect(document.querySelector('.pr-dashboard__chart-point--detached')).toBeTruthy()
   })
 
+  it('weekly_chart_pr_size_comparison_renders_segmented_completed_week_visual', () => {
+    render(
+      <WeeklyTrendChart
+        valueMode="lines"
+        yAxisLabel="Lines"
+        weeklyTrend={[
+          { weekStart: '2026-04-06', medianLines: 20 },
+          { weekStart: '2026-04-13', medianLines: 30 },
+          { weekStart: '2026-04-20', medianLines: 40 },
+          { weekStart: '2026-04-27', medianLines: 50 },
+          { weekStart: '2026-05-04', medianLines: 60 },
+          { weekStart: '2026-05-11', medianLines: 70 },
+        ]}
+        comparisonPeriodWeeks={3}
+        comparisonLabels={{
+          previous: 'Previous',
+          current: 'Latest',
+        }}
+      />,
+    )
+
+    expect(screen.getByTestId('comparison-boundary-divider')).toBeTruthy()
+    expect(screen.getByText('Previous')).toBeTruthy()
+    expect(screen.getByText('Latest')).toBeTruthy()
+    expect(document.querySelector('[data-period="previous"] path')?.getAttribute('stroke-dasharray')).toBeTruthy()
+    expect(document.querySelector('[data-period="current"] path[stroke="#111827"]')).toBeTruthy()
+  })
+
+  it('weekly_chart_pr_size_comparison_preserves_detached_current_week_point', () => {
+    render(
+      <WeeklyTrendChart
+        valueMode="lines"
+        yAxisLabel="Lines"
+        weeklyTrend={[
+          { weekStart: '2026-04-06', medianLines: 20 },
+          { weekStart: '2026-04-13', medianLines: 30 },
+          { weekStart: '2026-04-20', medianLines: 40 },
+          { weekStart: '2026-04-27', medianLines: 50 },
+        ]}
+        comparisonPeriodWeeks={2}
+        detachedPoint={{
+          weekStart: '2026-05-04',
+          medianLines: 55,
+          label: 'May 4 so far',
+          ariaLabel: 'Current week so far: 55 median lines',
+        }}
+      />,
+    )
+
+    expect(screen.getByTestId('comparison-boundary-divider')).toBeTruthy()
+    expect(document.querySelector('.pr-dashboard__chart-point--detached')).toBeTruthy()
+    expect(screen.getByText('May 4 so far')).toBeTruthy()
+  })
+
   it('pr_size_line_mode_handles_all_null_or_empty_line_trend', () => {
     const { rerender } = render(
       <WeeklyTrendChart

@@ -50,6 +50,7 @@ First Review shows the previous dashboard range followed by the current dashboar
 - [x] First Review shows baseline-context copy when the previous baseline is pending and no-current-data copy when the current period has no qualifying human-reviewed PRs.
 - [x] PR Size returns exactly 16 completed UTC ISO weeks regardless of dashboard `range.weeks`, plus at most one detached current-week-so-far point.
 - [x] PR Size line mode with more than 8 completed points renders completed x-axis labels only at indexes `0`, `floor((count - 1) / 2)`, and `count - 1`, and always renders the detached label when present.
+- [x] PR Size line mode uses the shared comparison presentation for its 16 completed weeks, with title `16-week PR Size comparison trend`, compact previous/latest period labels, divider, muted dashed previous segment, and dark latest segment.
 - [x] PR Size preserves 8-or-fewer plain-line labels, duration-comparison labels, accessible list completeness, confidence wording, low-sample wording, future-row exclusion, overflow marker, and actual detached numeric value.
 - [x] Responsive Playwright covers First Review comparison, PR Size completed-only, PR Size normal detached partial, and PR Size detached overflow at `1280x900` and `390x844`, with bounds, overlap, retained screenshots, and rendered-browser sign-off.
 - [x] Dashboard order remains PR Cycle Time, First Review Time, PR Size.
@@ -332,6 +333,7 @@ No new config keys or environment variables are introduced.
   - Add `visiblePlainLineAxisLabelIndexes(completedCount: number): number[]` exactly as specified in Architecture.
   - Apply it only when `comparisonTrend == null` and `valueMode === 'lines'`.
   - For line-mode completed histories over 8 points, render visible completed labels only at first, midpoint, and last indexes.
+  - Use the shared segmented comparison presentation for the fixed 16 completed-week PR Size chart.
   - Keep every data point, point value, path segment, null gap, and accessible caller list unchanged.
   - Always render detached-point axis label when present.
   - Preserve all-label behavior for line histories of 8 or fewer points.

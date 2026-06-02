@@ -23,11 +23,8 @@ function shortDetachedAxisLabel(weekStart: string): string {
   return `${months[d.getUTCMonth()]} ${d.getUTCDate()} so far`
 }
 
-function buildTrendTitle(completedCount: number, hasDetached: boolean): string {
-  if (hasDetached) {
-    return `${completedCount} completed weeks + current week so far`
-  }
-  return `${completedCount} completed-week PR Size trend`
+function completedWeekLabel(count: number): string {
+  return `${count} completed ${count === 1 ? 'week' : 'weeks'}`
 }
 
 function buildSrListItemText(p: Point, isPartial: boolean): string {
@@ -60,11 +57,8 @@ export function PrSizeTrendChart({ weeklyTrend }: Props) {
         }
       : undefined
 
-  const hasDetached = detachedPoint != null
-  const title = buildTrendTitle(completedCount, hasDetached)
-  const chartAriaLabel = hasDetached
-    ? `${completedCount} completed weeks plus current week so far PR size trend`
-    : `${completedCount} completed-week PR size trend`
+  const comparisonPeriodWeeks = completedCount >= 2 && completedCount % 2 === 0 ? completedCount / 2 : null
+  const title = `${completedCount}-week PR Size comparison trend`
 
   const confidenceCopy =
     currentPartial != null && currentPartial.measuredPrCount > 0
@@ -95,14 +89,24 @@ export function PrSizeTrendChart({ weeklyTrend }: Props) {
     <section className="pr-dashboard__card" data-testid="pr-size-trend" aria-label={title}>
       <h3 className="pr-dashboard__card-title">{title}</h3>
       <CardHowToRead>
-        Weekly median lines changed (additions plus deletions) for PRs merged in each week. Weeks with no
-        qualifying PRs appear as gaps.
+        {comparisonPeriodWeeks == null
+          ? `Weekly median lines changed (additions plus deletions) for PRs merged in each week. Weeks with no qualifying PRs appear as gaps.`
+          : `This ${completedCount}-week chart shows the previous ${completedWeekLabel(comparisonPeriodWeeks)} followed by the latest ${completedWeekLabel(comparisonPeriodWeeks)}. The muted dashed segment is the previous completed period, the dark segment is the latest completed period, and gaps mean no qualifying PRs in that bucket. A detached marker shows the current week so far when measured data exists.`}
       </CardHowToRead>
       <WeeklyTrendChart
         valueMode="lines"
         weeklyTrend={chartWeeklyTrend}
         detachedPoint={detachedPoint}
-        ariaLabel={chartAriaLabel}
+        {...(comparisonPeriodWeeks == null
+          ? {}
+          : {
+              comparisonPeriodWeeks,
+              comparisonLabels: {
+                previous: 'Previous',
+                current: 'Latest',
+              },
+            })}
+        ariaLabel={title}
         yAxisLabel="Lines"
       />
       {confidenceCopy ? (

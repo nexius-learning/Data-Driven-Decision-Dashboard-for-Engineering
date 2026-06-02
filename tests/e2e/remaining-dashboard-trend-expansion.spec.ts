@@ -75,6 +75,19 @@ async function assertConfidenceDoesNotOverlapChartOrTable(page: Page): Promise<v
   expect(boxesOverlap(confidenceBox, await requiredBox(page.getByTestId('pr-size-team-table')))).toBe(false)
 }
 
+async function assertPrSizeComparisonPresentation(page: Page, svg: Locator): Promise<void> {
+  await expect(page.getByRole('heading', { level: 3, name: '16-week PR Size comparison trend' })).toBeVisible()
+  await expect(svg.getByTestId('comparison-boundary-divider')).toBeAttached()
+  await expect(svg.getByTestId('comparison-label-previous')).toHaveText('Previous')
+  await expect(svg.getByTestId('comparison-label-current')).toHaveText('Latest')
+  expect(
+    boxesOverlap(
+      await requiredBox(svg.getByTestId('comparison-label-previous')),
+      await requiredBox(svg.getByTestId('comparison-label-current')),
+    ),
+  ).toBe(false)
+}
+
 async function assertDetachedLayoutInsideSvg(svg: Locator, overflow: boolean): Promise<void> {
   const detached = svg.locator('.pr-dashboard__chart-point--detached')
   await expect(detached).toBeVisible()
@@ -143,6 +156,7 @@ test('pr_size_completed_only_responsive_layout', async ({ page }) => {
     await captureScreenshot(page, 'pr-size-completed-only', viewport)
     await assertSvgLabelsInsideBounds(svg)
     await assertAdjacentXAxisLabelsDoNotOverlap(svg)
+    await assertPrSizeComparisonPresentation(page, svg)
     await expect(svg.locator('.pr-dashboard__chart-point--detached')).toHaveCount(0)
     await assertConfidenceDoesNotOverlapChartOrTable(page)
   }
@@ -159,6 +173,7 @@ test('pr_size_detached_partial_responsive_layout', async ({ page }) => {
     await captureScreenshot(page, 'pr-size-detached-partial', viewport)
     await assertSvgLabelsInsideBounds(svg)
     await assertAdjacentXAxisLabelsDoNotOverlap(svg)
+    await assertPrSizeComparisonPresentation(page, svg)
     await assertDetachedLayoutInsideSvg(svg, false)
     await assertConfidenceDoesNotOverlapChartOrTable(page)
   }
@@ -175,6 +190,7 @@ test('pr_size_detached_overflow_responsive_layout', async ({ page }) => {
     await captureScreenshot(page, 'pr-size-detached-overflow', viewport)
     await assertSvgLabelsInsideBounds(svg)
     await assertAdjacentXAxisLabelsDoNotOverlap(svg)
+    await assertPrSizeComparisonPresentation(page, svg)
     await assertDetachedLayoutInsideSvg(svg, true)
     await assertConfidenceDoesNotOverlapChartOrTable(page)
   }

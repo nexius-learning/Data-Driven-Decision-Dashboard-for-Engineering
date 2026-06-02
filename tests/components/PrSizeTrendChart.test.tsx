@@ -145,7 +145,7 @@ describe('PrSizeTrendChart', () => {
     )
   })
 
-  it('pr_size_trend_remains_line_mode_with_detached_current_partial', () => {
+  it('pr_size_trend_uses_completed_week_comparison_presentation_with_detached_current_partial', () => {
     const data = [
       completed('2026-04-06', 20, 5),
       completed('2026-04-13', 40, 4),
@@ -157,16 +157,20 @@ describe('PrSizeTrendChart', () => {
     expect(props).toEqual(
       expect.objectContaining({
         valueMode: 'lines',
+        comparisonPeriodWeeks: 1,
+        comparisonLabels: {
+          previous: 'Previous',
+          current: 'Latest',
+        },
         detachedPoint: expect.objectContaining({
           weekStart: '2026-04-20',
           medianLines: 55,
         }),
       }),
     )
-    expect(props).not.toHaveProperty('comparisonTrend')
   })
 
-  it('pr_size_trend_no_detached_title_and_aria_use_completed_point_count', () => {
+  it('pr_size_trend_no_detached_title_and_aria_use_comparison_title', () => {
     const data = [
       completed('2026-01-06', 100, 3),
       completed('2026-01-13', 200, 4),
@@ -175,34 +179,34 @@ describe('PrSizeTrendChart', () => {
     ]
     render(<PrSizeTrendChart weeklyTrend={data} />)
 
-    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('4 completed-week PR Size trend')
+    expect(screen.getByRole('heading', { level: 3 }).textContent).toBe('4-week PR Size comparison trend')
     expect(screen.getByTestId('pr-size-trend').getAttribute('aria-label')).toBe(
-      '4 completed-week PR Size trend',
+      '4-week PR Size comparison trend',
     )
     expect(MockedWeeklyTrendChart).toHaveBeenCalledWith(
       expect.objectContaining({
-        ariaLabel: '4 completed-week PR size trend',
+        ariaLabel: '4-week PR Size comparison trend',
       }),
       undefined,
     )
     expect(screen.queryByText(/8-week/i)).toBeNull()
   })
 
-  it('pr_size_trend_detached_title_and_aria_include_current_week_so_far', () => {
+  it('pr_size_trend_detached_title_and_aria_keep_stable_comparison_title', () => {
     const eightCompleted = Array.from({ length: 8 }, (_, i) =>
       completed(`2026-03-${String(10 + i).padStart(2, '0')}`, 10 + i, 5),
     )
     render(<PrSizeTrendChart weeklyTrend={[...eightCompleted, partial('2026-04-27', 80, 3)]} />)
 
     expect(screen.getByRole('heading', { level: 3 }).textContent).toBe(
-      '8 completed weeks + current week so far',
+      '8-week PR Size comparison trend',
     )
     expect(screen.getByTestId('pr-size-trend').getAttribute('aria-label')).toBe(
-      '8 completed weeks + current week so far',
+      '8-week PR Size comparison trend',
     )
     expect(MockedWeeklyTrendChart).toHaveBeenCalledWith(
       expect.objectContaining({
-        ariaLabel: '8 completed weeks plus current week so far PR size trend',
+        ariaLabel: '8-week PR Size comparison trend',
       }),
       undefined,
     )
