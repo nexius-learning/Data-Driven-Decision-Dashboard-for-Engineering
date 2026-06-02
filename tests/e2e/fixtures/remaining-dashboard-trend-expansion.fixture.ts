@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 
+import { getDashboardDateRanges } from '~/config/env'
 import type { AppDb } from '~/db/client'
 import {
   pullRequestReviewComments,
@@ -29,6 +30,7 @@ const MS_PER_HOUR = 60 * 60 * 1000
 const FIX_004_FIRST_REVIEW_WEEKS = 8
 
 type SeedOptions = {
+  now?: Date
   repoRoot?: string
   scenario: RemainingDashboardTrendExpansionScenario
 }
@@ -46,7 +48,7 @@ function addUtcDays(date: Date, days: number): Date {
   return result
 }
 
-function makeRepository(repoRoot: string, repo: string, reviewSynced: boolean) {
+function makeRepository(repoRoot: string, repo: string, reviewSynced: boolean, now: Date) {
   return {
     id: randomUUID(),
     name: repo,
@@ -59,9 +61,9 @@ function makeRepository(repoRoot: string, repo: string, reviewSynced: boolean) {
     team: repo === 'svc-unsynced' ? 'TeamUnsynced' : 'TeamAlpha',
     scanStatus: 'ready' as const,
     active: true,
-    lastScannedAt: FIX_004_NOW,
-    lastPrSyncedAt: FIX_004_NOW,
-    lastReviewSyncedAt: reviewSynced ? FIX_004_NOW : null,
+    lastScannedAt: now,
+    lastPrSyncedAt: now,
+    lastReviewSyncedAt: reviewSynced ? now : null,
   }
 }
 
@@ -115,13 +117,15 @@ async function insertReviewedPr(
 async function seedFirstReviewComparison(
   db: AppDb,
   repoRoot: string,
+  now: Date,
 ): Promise<RemainingDashboardTrendExpansionSeedResult> {
-  const synced = makeRepository(repoRoot, 'svc-synced', true)
-  const unsynced = makeRepository(repoRoot, 'svc-unsynced', false)
+  const synced = makeRepository(repoRoot, 'svc-synced', true, now)
+  const unsynced = makeRepository(repoRoot, 'svc-unsynced', false, now)
   await db.insert(repositories).values([synced, unsynced])
 
-  const currentFrom = new Date('2026-03-05T00:00:00.000Z')
-  const previousFrom = new Date('2026-01-08T00:00:00.000Z')
+  const { current, previous } = getDashboardDateRanges(now, FIX_004_FIRST_REVIEW_WEEKS)
+  const currentFrom = current.from
+  const previousFrom = previous.from
   const previousHours = [2, 4, 8, 12, 24, 36, 48, 72]
   const currentHours = [3, 6, 10, 16, 28, 42, 64, 96]
 
@@ -145,7 +149,7 @@ async function seedFirstReviewComparison(
   await insertReviewedPr(db, unsynced.id, 999, addUtcDays(currentFrom, 3), 240)
 
   return {
-    now: new Date(FIX_004_NOW),
+    now: new Date(now),
     repoRoot,
     repoSyncedId: synced.id,
     repoUnsyncedId: unsynced.id,
@@ -156,11 +160,12 @@ async function seedPrSize(
   db: AppDb,
   repoRoot: string,
   scenario: Exclude<RemainingDashboardTrendExpansionScenario, 'first-review-comparison'>,
+  now: Date,
 ): Promise<RemainingDashboardTrendExpansionSeedResult> {
-  const synced = makeRepository(repoRoot, 'svc-alpha', true)
+  const synced = makeRepository(repoRoot, 'svc-alpha', true, now)
   await db.insert(repositories).values(synced)
 
-  const currentWeekStart = isoWeekStart(FIX_004_NOW)
+  const currentWeekStart = isoWeekStart(now)
   const rows = Array.from({ length: FIX_004_PR_SIZE_COMPLETED_POINTS }, (_, index) => {
     const weekStart = addUtcDays(currentWeekStart, -(FIX_004_PR_SIZE_COMPLETED_POINTS - index) * 7)
     const lines = 40 + index * 80
@@ -172,13 +177,15 @@ async function seedPrSize(
       scenario === 'pr-size-detached-overflow'
         ? FIX_004_PR_SIZE_DETACHED_OVERFLOW_LINES
         : FIX_004_PR_SIZE_DETACHED_PARTIAL_LINES
-    rows.push(makePr(synced.id, 101, addUtcDays(currentWeekStart, 2), { lines }))
+    const preferredPartialMergedAt = addUtcDays(currentWeekStart, 2)
+    const partialMergedAt = preferredPartialMergedAt.getTime() <= now.getTime() ? preferredPartialMergedAt : now
+    rows.push(makePr(synced.id, 101, partialMergedAt, { lines }))
   }
 
   await db.insert(pullRequests).values(rows)
 
   return {
-    now: new Date(FIX_004_NOW),
+    now: new Date(now),
     repoRoot,
     repoSyncedId: synced.id,
   }
@@ -198,19 +205,20 @@ export async function seedRemainingDashboardTrendExpansion(
   options: SeedOptions,
 ): Promise<RemainingDashboardTrendExpansionSeedResult> {
   const repoRoot = options.repoRoot ?? FIX_004_REPO_ROOT
+  const now = options.now ?? FIX_004_NOW
 
   await db.insert(syncRuns).values({
     id: randomUUID(),
     kind: 'collector_refresh',
     status: 'success',
-    startedAt: FIX_004_NOW,
-    finishedAt: FIX_004_NOW,
+    startedAt: now,
+    finishedAt: now,
     message: `fix004-e2e-seed:${options.scenario}`,
     errorCount: 0,
   })
 
   if (options.scenario === 'first-review-comparison') {
-    return seedFirstReviewComparison(db, repoRoot)
+    return seedFirstReviewComparison(db, repoRoot, now)
   }
-  return seedPrSize(db, repoRoot, options.scenario)
+  return seedPrSize(db, repoRoot, options.scenario, now)
 }

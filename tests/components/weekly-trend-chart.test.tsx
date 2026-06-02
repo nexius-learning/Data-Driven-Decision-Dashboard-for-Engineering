@@ -105,6 +105,29 @@ describe('WeeklyTrendChart', () => {
     expect(screen.queryByText('Jan 6')).toBeNull()
   })
 
+  it('weekly_chart_detached_axis_label_is_right_anchored_on_its_own_row', () => {
+    render(
+      <WeeklyTrendChart
+        valueMode="lines"
+        weeklyTrend={Array.from({ length: 16 }, (_, i) => ({
+          weekStart: `2026-01-${String(5 + i).padStart(2, '0')}`,
+          medianLines: 10 + i,
+        }))}
+        yAxisLabel="Lines"
+        detachedPoint={{
+          weekStart: '2026-01-21',
+          medianLines: 30,
+          label: 'Jan 21 so far',
+          ariaLabel: 'Current week so far: 30 median lines',
+        }}
+      />,
+    )
+
+    const label = screen.getByText('Jan 21 so far')
+    expect(label).toHaveAttribute('text-anchor', 'end')
+    expect(label).toHaveAttribute('y', '194')
+  })
+
   it('weekly_chart_duration_comparison_axis_labels_remain_unchanged', () => {
     render(<WeeklyTrendChart valueMode="duration" weeklyTrend={[]} comparisonTrend={comparisonTrend} />)
 

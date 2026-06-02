@@ -489,11 +489,11 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           <text
             key={`detached-${detachedPoint.weekStart}`}
             x={detachedX}
-            y={VB_H - 12}
+            y={VB_H - 26}
             fill="#6b7280"
             fontSize="10"
             fontWeight="500"
-            textAnchor="middle"
+            textAnchor="end"
           >
             {detachedPoint.label}
           </text>
