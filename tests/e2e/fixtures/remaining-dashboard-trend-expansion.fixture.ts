@@ -48,6 +48,17 @@ function addUtcDays(date: Date, days: number): Date {
   return result
 }
 
+export function assertDisposableFix004Database(databaseUrl = process.env.DATABASE_URL): void {
+  if (!databaseUrl?.trim()) {
+    throw new Error('FIX-004 fixtures require an explicit disposable test database URL')
+  }
+
+  const databaseName = new URL(databaseUrl).pathname.slice(1)
+  if (!databaseName.endsWith('_test')) {
+    throw new Error(`FIX-004 fixtures require a disposable test database; received "${databaseName}"`)
+  }
+}
+
 function makeRepository(repoRoot: string, repo: string, reviewSynced: boolean, now: Date) {
   return {
     id: randomUUID(),
@@ -192,6 +203,7 @@ async function seedPrSize(
 }
 
 export async function resetRemainingDashboardTrendExpansion(db: AppDb): Promise<void> {
+  assertDisposableFix004Database()
   await db.delete(syncErrors)
   await db.delete(syncRuns)
   await db.delete(pullRequestReviewComments)
@@ -204,6 +216,7 @@ export async function seedRemainingDashboardTrendExpansion(
   db: AppDb,
   options: SeedOptions,
 ): Promise<RemainingDashboardTrendExpansionSeedResult> {
+  assertDisposableFix004Database()
   const repoRoot = options.repoRoot ?? FIX_004_REPO_ROOT
   const now = options.now ?? FIX_004_NOW
 
