@@ -11,7 +11,10 @@ import {
   WEEKLY_TREND_CHART_VIEWBOX_HEIGHT,
   WEEKLY_TREND_CHART_VIEWBOX_WIDTH,
 } from '~/components/dashboard/weekly-trend-chart-layout'
-import { WeeklyTrendChart } from '~/components/dashboard/weekly-trend-chart'
+import {
+  visiblePlainLineAxisLabelIndexes,
+  WeeklyTrendChart,
+} from '~/components/dashboard/weekly-trend-chart'
 
 const comparisonTrend = Array.from({ length: 16 }, (_, i) => ({
   period: i < 8 ? ('previous' as const) : ('current' as const),
@@ -52,6 +55,65 @@ function shortRenderedDate(dateLabel: string): string {
 afterEach(cleanup)
 
 describe('WeeklyTrendChart', () => {
+  it('weekly_chart_plain_line_axis_labels_are_sparse_over_eight_points', () => {
+    const weeklyTrend = Array.from({ length: 16 }, (_, i) => ({
+      weekStart: `2026-01-${String(5 + i).padStart(2, '0')}`,
+      medianLines: 10 + i,
+    }))
+
+    render(<WeeklyTrendChart valueMode="lines" weeklyTrend={weeklyTrend} yAxisLabel="Lines" />)
+
+    expect(visiblePlainLineAxisLabelIndexes(16)).toEqual([0, 7, 15])
+    expect(screen.getByText('Jan 5')).toBeTruthy()
+    expect(screen.getByText('Jan 12')).toBeTruthy()
+    expect(screen.getByText('Jan 20')).toBeTruthy()
+    expect(screen.queryByText('Jan 6')).toBeNull()
+  })
+
+  it('weekly_chart_plain_line_axis_labels_use_floor_midpoint', () => {
+    expect(visiblePlainLineAxisLabelIndexes(9)).toEqual([0, 4, 8])
+    expect(visiblePlainLineAxisLabelIndexes(10)).toEqual([0, 4, 9])
+  })
+
+  it('weekly_chart_plain_line_axis_labels_preserve_eight_or_fewer_points', () => {
+    expect(visiblePlainLineAxisLabelIndexes(0)).toEqual([])
+    expect(visiblePlainLineAxisLabelIndexes(1)).toEqual([0])
+    expect(visiblePlainLineAxisLabelIndexes(8)).toEqual([0, 1, 2, 3, 4, 5, 6, 7])
+  })
+
+  it('weekly_chart_plain_line_axis_labels_always_include_detached_label', () => {
+    const weeklyTrend = Array.from({ length: 16 }, (_, i) => ({
+      weekStart: `2026-01-${String(5 + i).padStart(2, '0')}`,
+      medianLines: 10 + i,
+    }))
+
+    render(
+      <WeeklyTrendChart
+        valueMode="lines"
+        weeklyTrend={weeklyTrend}
+        yAxisLabel="Lines"
+        detachedPoint={{
+          weekStart: '2026-01-21',
+          medianLines: 30,
+          label: 'Jan 21 so far',
+          ariaLabel: 'Current week so far: 30 median lines',
+        }}
+      />,
+    )
+
+    expect(screen.getByText('Jan 21 so far')).toBeTruthy()
+    expect(screen.queryByText('Jan 6')).toBeNull()
+  })
+
+  it('weekly_chart_duration_comparison_axis_labels_remain_unchanged', () => {
+    render(<WeeklyTrendChart valueMode="duration" weeklyTrend={[]} comparisonTrend={comparisonTrend} />)
+
+    expect(screen.getByText(shortRenderedDate(comparisonTrend[0]!.bucketLabel))).toBeTruthy()
+    expect(screen.getByText(shortRenderedDate(comparisonTrend[8]!.bucketLabel))).toBeTruthy()
+    expect(screen.getByText(shortRenderedDate(comparisonTrend[15]!.bucketLabel))).toBeTruthy()
+    expect(screen.queryByText(shortRenderedDate(comparisonTrend[1]!.bucketLabel))).toBeNull()
+  })
+
   it('duration_chart_uses_minutes_under_one_hour', () => {
     render(
       <WeeklyTrendChart

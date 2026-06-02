@@ -79,6 +79,16 @@ function buildLineAxis(maxNumeric: number): { maxValue: number; ticks: number[] 
   return { maxValue, ticks: Array.from({ length: tickCount }, (_, i) => i * step) }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components -- Task 3.2 requires this chart selector to be exported.
+export function visiblePlainLineAxisLabelIndexes(completedCount: number): number[] {
+  if (completedCount <= 8) {
+    return Array.from({ length: completedCount }, (_, i) => i)
+  }
+  return [0, Math.floor((completedCount - 1) / 2), completedCount - 1].filter(
+    (value, index, values) => values.indexOf(value) === index,
+  )
+}
+
 type Pt = { i: number; x: number; y: number; value: number }
 type ComparisonPt = Pt & { period: 'previous' | 'current' }
 
@@ -200,6 +210,10 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
       : [0, comparisonBucketCount, comparisonTrend.length - 1].filter(
           (value, index, values) => values.indexOf(value) === index,
         )
+  const plainAxisLabelIndexes =
+    comparisonTrend == null && linesMode
+      ? new Set(visiblePlainLineAxisLabelIndexes(weeklyTrend.length))
+      : null
 
   const pathSegments: Array<{ d: string; stroke: string }> = []
   for (const run of contiguousRuns(plainPts)) {
@@ -442,6 +456,7 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
         ) : null}
 
         {comparisonTrend == null && weeklyTrend.map((p, i) => (
+          plainAxisLabelIndexes == null || plainAxisLabelIndexes.has(i) ? (
           <text
             key={'weekStart' in p ? p.weekStart : p.bucketStart}
             x={xAt(i)}
@@ -453,6 +468,7 @@ export function WeeklyTrendChart(props: WeeklyTrendChartProps) {
           >
             {'weekStart' in p ? shortWeekLabel(p.weekStart) : shortWeekLabel(p.bucketLabel)}
           </text>
+          ) : null
         ))}
 
         {comparisonTrend ? comparisonAxisLabelIndexes.map((i) => (

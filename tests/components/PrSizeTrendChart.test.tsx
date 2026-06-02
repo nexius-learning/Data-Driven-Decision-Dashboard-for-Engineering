@@ -42,6 +42,48 @@ afterEach(() => {
 })
 
 describe('PrSizeTrendChart', () => {
+  it('pr_size_trend_accessible_list_contains_16_or_17_items', () => {
+    const completedWeeks = Array.from({ length: 16 }, (_, i) =>
+      completed(`2026-01-${String(5 + i).padStart(2, '0')}`, 10 + i, 3),
+    )
+    const { rerender } = render(<PrSizeTrendChart weeklyTrend={completedWeeks} />)
+
+    expect(screen.getByTestId('pr-size-weekly-trend-list').querySelectorAll('li')).toHaveLength(16)
+
+    rerender(<PrSizeTrendChart weeklyTrend={[...completedWeeks, partial('2026-01-21', 30, 3)]} />)
+    expect(screen.getByTestId('pr-size-weekly-trend-list').querySelectorAll('li')).toHaveLength(17)
+  })
+
+  it('pr_size_trend_detached_accessible_item_says_current_week_so_far', () => {
+    render(
+      <PrSizeTrendChart
+        weeklyTrend={[completed('2026-04-06', 20, 5), partial('2026-04-13', 30, 3)]}
+      />,
+    )
+
+    expect(screen.getByTestId('pr-size-weekly-trend-list').querySelector('[data-partial-week]')?.textContent).toContain(
+      'current week so far',
+    )
+  })
+
+  it('pr_size_trend_detached_overflow_preserves_actual_numeric_value', () => {
+    render(
+      <PrSizeTrendChart
+        weeklyTrend={[completed('2026-04-06', 20, 5), partial('2026-04-13', 500, 3)]}
+      />,
+    )
+
+    expect(MockedWeeklyTrendChart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        detachedPoint: expect.objectContaining({ medianLines: 500 }),
+      }),
+      undefined,
+    )
+    expect(screen.getByTestId('pr-size-weekly-trend-list').querySelector('[data-partial-week]')?.textContent).toContain(
+      '500 lines',
+    )
+  })
+
   it('renders_chart_with_data_points', () => {
     const data = [
       completed('2026-01-06', 100, 3),
