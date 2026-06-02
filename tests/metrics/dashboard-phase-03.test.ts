@@ -11,7 +11,10 @@ import type { TeamMappingConfig } from '~/config/team-mapping'
 import { getDashboardDateRanges } from '~/config/env'
 import { createDb, runMigrations } from '~/db/client'
 import { pullRequests, repositories, syncErrors } from '~/db/schema'
-import { getPrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
+import {
+  getPrCycleTimeDashboard,
+  PR_SIZE_COMPLETED_TREND_WEEKS,
+} from '~/metrics/pr-cycle-time-dashboard'
 import { isoWeekStart } from '~/metrics/pr-size-metric'
 
 const databaseUrl = process.env.DATABASE_URL?.trim()
@@ -228,7 +231,7 @@ describe('dashboard phase 03 integration', () => {
     })
   })
 
-  it('dashboard_pr_size_weekly_trend_exposes_expanded_completed_week_payload', async () => {
+  it('dashboard_pr_size_trend_returns_16_completed_weeks_for_default_range', async () => {
     const repo = await makeRepo()
     await insertMergedPr(repo.id, {
       mergedAt: currentMergedAt(4),
@@ -239,7 +242,7 @@ describe('dashboard phase 03 integration', () => {
     const out = await getPrCycleTimeDashboard({ db, now })
     expect(out.prSize).toBeDefined()
     const trend = out.prSize!.weeklyTrend
-    expect(trend).toHaveLength(8)
+    expect(trend).toHaveLength(PR_SIZE_COMPLETED_TREND_WEEKS)
     expect(trend.every((p) => p.isPartialWeek === false)).toBe(true)
     for (const p of trend) {
       expect(p.weekStart).toEqual(expect.any(String))
@@ -250,7 +253,22 @@ describe('dashboard phase 03 integration', () => {
     expect(trend.some((p) => p.measuredPrCount > 0)).toBe(true)
   })
 
-  it('dashboard_pr_size_weekly_trend_exposes_partial_point_only_after_detached_ui_support', async () => {
+  it('dashboard_pr_size_trend_returns_16_completed_weeks_for_four_week_dashboard_range', async () => {
+    const repo = await makeRepo()
+    const { current } = getDashboardDateRanges(now, 4)
+    await insertMergedPr(repo.id, {
+      mergedAt: new Date(current.from.getTime() + 4 * 24 * 60 * 60 * 1000),
+      additions: 80,
+      deletions: 20,
+      changedFiles: 2,
+    })
+    const out = await getPrCycleTimeDashboard({ db, now, weeks: 4 })
+    expect(out.range.weeks).toBe(4)
+    expect(out.prSize?.weeklyTrend).toHaveLength(PR_SIZE_COMPLETED_TREND_WEEKS)
+    expect(out.prSize?.weeklyTrend.every((p) => p.isPartialWeek === false)).toBe(true)
+  })
+
+  it('dashboard_pr_size_trend_appends_at_most_one_current_partial_point', async () => {
     const repo = await makeRepo()
     await insertMergedPr(repo.id, {
       mergedAt: now,
@@ -262,10 +280,11 @@ describe('dashboard phase 03 integration', () => {
     const withCurrent = await getPrCycleTimeDashboard({ db, now })
     expect(withCurrent.prSize).toBeDefined()
     const currentTrend = withCurrent.prSize!.weeklyTrend
-    expect(currentTrend).toHaveLength(9)
+    expect(currentTrend).toHaveLength(PR_SIZE_COMPLETED_TREND_WEEKS + 1)
     expect(currentTrend.at(-1)?.isPartialWeek).toBe(true)
     expect(currentTrend.at(-1)?.measuredPrCount).toBe(1)
-    expect(currentTrend.filter((p) => !p.isPartialWeek)).toHaveLength(8)
+    expect(currentTrend.filter((p) => !p.isPartialWeek)).toHaveLength(PR_SIZE_COMPLETED_TREND_WEEKS)
+    expect(currentTrend.filter((p) => p.isPartialWeek)).toHaveLength(1)
 
     await db.delete(pullRequests)
     await insertMergedPr(repo.id, {
@@ -275,11 +294,11 @@ describe('dashboard phase 03 integration', () => {
       changedFiles: 2,
     })
     const historicalOnly = await getPrCycleTimeDashboard({ db, now })
-    expect(historicalOnly.prSize?.weeklyTrend).toHaveLength(8)
+    expect(historicalOnly.prSize?.weeklyTrend).toHaveLength(PR_SIZE_COMPLETED_TREND_WEEKS)
     expect(historicalOnly.prSize?.weeklyTrend.every((p) => p.isPartialWeek === false)).toBe(true)
   })
 
-  it('dashboard_pr_size_excludes_future_rows_from_metric_table_exceptions_visibility_and_trend', async () => {
+  it('dashboard_pr_size_future_row_exclusion_remains_intact', async () => {
     const repo = await makeRepo()
     const baselineMergedAt = currentMergedAt(5)
     await insertMergedPr(repo.id, {
@@ -336,7 +355,7 @@ describe('dashboard phase 03 integration', () => {
     expect(out.prSize?.exceptions).toHaveLength(0)
   })
 
-  it('dashboard_pr_size_non_trend_surfaces_keep_selected_window', async () => {
+  it('dashboard_pr_size_non_trend_surfaces_keep_selected_dashboard_range', async () => {
     const repo = await makeRepo()
     const { current } = getDashboardDateRanges(now, 8)
     await insertMergedPr(repo.id, {
@@ -347,7 +366,9 @@ describe('dashboard phase 03 integration', () => {
       changedFiles: 1,
     })
     const oldestCompletedMonday = isoWeekStart(now)
-    oldestCompletedMonday.setUTCDate(oldestCompletedMonday.getUTCDate() - 8 * 7)
+    oldestCompletedMonday.setUTCDate(
+      oldestCompletedMonday.getUTCDate() - PR_SIZE_COMPLETED_TREND_WEEKS * 7,
+    )
     let trendOnlyMergedAt = new Date(
       oldestCompletedMonday.getTime() + 2 * 24 * 60 * 60 * 1000 + 12 * 60 * 60 * 1000,
     )

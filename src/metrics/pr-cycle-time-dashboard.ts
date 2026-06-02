@@ -195,6 +195,7 @@ export type PrCycleTimeDashboard = {
 const MS_PER_HOUR = 1000 * 60 * 60
 
 export const DASHBOARD_UNASSIGNED_TEAM = 'Unassigned'
+export const PR_SIZE_COMPLETED_TREND_WEEKS = 16
 
 function isMetricsRepository(repo: typeof repositories.$inferSelect): boolean {
   return repo.active && repo.scanStatus === 'ready'
@@ -465,7 +466,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
       ? {
           metric: prSizeMetric,
           exceptions: buildPrSizeExceptions(currentTeamPrs),
-          weeklyTrend: getPrSizeWeeklyTrend(sizePrsForTrend, weeks, now, {
+          weeklyTrend: getPrSizeWeeklyTrend(sizePrsForTrend, PR_SIZE_COMPLETED_TREND_WEEKS, now, {
             includeCurrentPartial: true,
           }),
           teamBreakdown: getPrSizeTeamBreakdown(sizePrsForTrend, current, previous),
