@@ -13,12 +13,14 @@ export function TeamLabel({ team, dotClassName }: Props) {
         className={isUnassigned ? 'pr-dashboard__team-dot pr-dashboard__team-dot--unassigned' : dotClassName}
         aria-hidden="true"
       />
-      <span>{team}</span>
-      {isUnassigned ? (
-        <span className="pr-dashboard__team-note" title="Repository is missing a team mapping">
-          needs team mapping
-        </span>
-      ) : null}
+      <span className="pr-dashboard__team-label-stack">
+        <span>{team}</span>
+        {isUnassigned ? (
+          <span className="pr-dashboard__team-note" title="Repository is missing a team mapping">
+            needs team mapping
+          </span>
+        ) : null}
+      </span>
     </span>
   )
 }

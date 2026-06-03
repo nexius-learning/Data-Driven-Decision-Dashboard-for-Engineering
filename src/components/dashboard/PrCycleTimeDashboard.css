@@ -622,10 +622,17 @@
 
 .pr-dashboard__team-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   font-weight: 600;
   color: var(--color-text);
+}
+
+.pr-dashboard__team-label-stack {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 5px;
+  line-height: 1.2;
 }
 
 .pr-dashboard__team-note {
