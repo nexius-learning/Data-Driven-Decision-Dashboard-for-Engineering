@@ -99,7 +99,7 @@ describe('one-page metric layout rule', () => {
   })
 
   it('docs_phase_03_appends_pr_size_below_first_review', () => {
-    const body = readDoc('Documentation/Backlog/phase-03-pr-size.md')
+    const body = readDoc('Documentation/Completed/phase-03-pr-size.md')
     expect(body).toMatch(/PR Size.*section below the First Review Time section/s)
     expect(body).toMatch(/PR Cycle Time remains first/)
     expect(body).toMatch(/First Review Time remains second/)

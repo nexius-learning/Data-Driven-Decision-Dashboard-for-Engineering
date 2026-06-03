@@ -10,7 +10,7 @@ function readDoc(rel: string): string {
 
 describe('FEAT-003 documentation links', () => {
   it('docs_phase_03_links_feat_003', () => {
-    const body = readDoc('Documentation/Backlog/phase-03-pr-size.md')
+    const body = readDoc('Documentation/Completed/phase-03-pr-size.md')
     expect(body).toMatch(/FEAT-003-pr-size-implementation-plan\.md/)
     expect(body).toMatch(/Status: Implemented/)
   })

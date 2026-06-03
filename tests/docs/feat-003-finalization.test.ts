@@ -7,7 +7,7 @@ const read = (rel: string) => readFileSync(path.join(root, rel), 'utf8')
 
 describe('FEAT-003 finalization docs', () => {
   it('docs_phase_03_checklist_updated', () => {
-    const body = read('Documentation/Backlog/phase-03-pr-size.md')
+    const body = read('Documentation/Completed/phase-03-pr-size.md')
     const section = body.split('## Acceptance criteria checklist')[1]?.split('##')[0] ?? ''
     expect(section).not.toMatch(/- \[ \]/)
     expect(section).toMatch(/- \[x\]/)
@@ -31,7 +31,7 @@ describe('FEAT-003 finalization docs', () => {
   })
 
   it('docs_feat_003_task_10_1_complete', () => {
-    const body = read('Documentation/Backlog/FEAT-003-pr-size-implementation-plan.md')
+    const body = read('Documentation/Completed/FEAT-003-pr-size-implementation-plan.md')
     expect(body).toMatch(/\*\*Status\*\*: Done/)
     expect(body).toMatch(/#### Task 10\.1 — Final verification & documentation update\n- \[x\]/)
   })
