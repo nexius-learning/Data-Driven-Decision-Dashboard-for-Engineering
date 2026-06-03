@@ -207,6 +207,59 @@ describe('syncRepositoryPrSizes integration', () => {
     expect(row).toEqual({ additions: 99, deletions: 11, changedFiles: 7 })
   })
 
+  it('sync_sizes_falls_back_to_api_when_stored_merge_sha_is_missing_locally', async () => {
+    const { repoRow, repoPath } = await setupRepo()
+    const pr = await insertPr(repoRow.id, {
+      number: 211,
+      mergedAt: new Date('2026-04-05T12:00:00Z'),
+      mergeCommitSha: 'missing-sha',
+    })
+    const runId = await setupSyncRun()
+    const getPullRequestDetail = vi.fn(async () => ({
+      additions: 12,
+      deletions: 3,
+      changedFiles: 2,
+    }))
+
+    __setGitExecForTests(
+      createGitMock((gitArgs) => {
+        if (gitArgs[0] === 'fetch') return ''
+        if (gitArgs[0] === 'rev-list') {
+          throw new GitOpError('git rev-list failed: fatal: bad object missing-sha')
+        }
+        throw new Error(`unexpected: ${gitArgs.join(' ')}`)
+      }),
+    )
+
+    const counts = await syncRepositoryPrSizes({
+      db,
+      repoPath,
+      repositoryId: repoRow.id,
+      owner: repoRow.owner!,
+      repo: repoRow.repo!,
+      syncRunId: runId,
+      githubClient: makeGithubClient({ getPullRequestDetail }),
+    })
+
+    expect(counts).toEqual({ ok: 1, skipped: 0, failed: 0 })
+    expect(getPullRequestDetail).toHaveBeenCalledWith({
+      owner: repoRow.owner,
+      repo: repoRow.repo,
+      pullNumber: pr.number,
+    })
+    const [row] = await db
+      .select({
+        additions: pullRequests.additions,
+        deletions: pullRequests.deletions,
+        changedFiles: pullRequests.changedFiles,
+      })
+      .from(pullRequests)
+      .where(eq(pullRequests.id, pr.id))
+    expect(row).toEqual({ additions: 12, deletions: 3, changedFiles: 2 })
+    const errs = await db.select().from(syncErrors).where(eq(syncErrors.syncRunId, runId))
+    expect(errs).toHaveLength(0)
+  })
+
   it('sync_sizes_backfills_pr_without_merge_commit_sha', async () => {
     const { repoRow, repoPath } = await setupRepo()
     const mergedAt = new Date('2026-04-05T12:00:00Z')

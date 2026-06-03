@@ -157,6 +157,19 @@ export async function runGitDiffShortstat(
   }
 }
 
+function isMissingLocalGitObjectError(error: unknown): boolean {
+  if (!(error instanceof GitOpError)) {
+    return false
+  }
+  const message = error.message
+  return (
+    message.includes('bad object') ||
+    message.includes('could not get object info') ||
+    message.includes('unknown revision') ||
+    message.includes('bad revision')
+  )
+}
+
 export async function fetchRepo(
   repoPath: string,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
@@ -394,7 +407,15 @@ async function computeSizeForPr(
   githubClient: GitHubClient,
 ): Promise<{ additions: number; deletions: number; changedFiles: number }> {
   const detect = detectMergeStrategyOverride ?? detectMergeStrategy
-  const strategy = await detect(sha, repoPath, prNumber)
+  let strategy: 'merge' | 'squash' | 'rebase'
+  try {
+    strategy = await detect(sha, repoPath, prNumber)
+  } catch (error) {
+    if (isMissingLocalGitObjectError(error)) {
+      return githubClient.getPullRequestDetail({ owner, repo, pullNumber: prNumber })
+    }
+    throw error
+  }
   if (strategy === 'rebase') {
     return githubClient.getPullRequestDetail({ owner, repo, pullNumber: prNumber })
   }
