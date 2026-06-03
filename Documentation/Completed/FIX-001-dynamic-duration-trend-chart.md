@@ -6,7 +6,7 @@
 ---
 
 ## Background
-The PR Cycle Time and First Review trend charts receive weekly median values in hours, but the shared chart currently plots duration values as days and formats labels with one decimal place. Local datasets with sub-day medians can therefore display real non-zero values as `0.0`, which hides signal during early setup and small-team usage. The feature brief is `Documentation/Backlog/dynamic-duration-trend-chart-brief.md`.
+The PR Cycle Time and First Review trend charts receive weekly median values in hours, but the shared chart currently plots duration values as days and formats labels with one decimal place. Local datasets with sub-day medians can therefore display real non-zero values as `0.0`, which hides signal during early setup and small-team usage. The feature brief is `Documentation/Completed/dynamic-duration-trend-chart-brief.md`.
 
 ## Goal
 When this fix is complete, PR Cycle Time and First Review trend charts automatically choose minutes, hours, or days from the current non-null weekly values, keep one coherent unit per chart, preserve null-week gaps, and never label real non-zero duration points as `0.0`. PR Size trend charts continue to use line-based scaling and sparse tick behavior.
@@ -223,7 +223,7 @@ When this fix is complete, PR Cycle Time and First Review trend charts automatic
 
 ### Verification notes
 
-- `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Backlog/dynamic-duration-trend-chart-brief.md`, and `Documentation/Backlog/phase-04-jira-flow-metrics.md` were reviewed during final verification.
+- `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Completed/dynamic-duration-trend-chart-brief.md`, and `Documentation/Backlog/phase-04-jira-flow-metrics.md` were reviewed during final verification.
 - No roadmap phase movement is needed; this fix refines existing PR Cycle Time and First Review trend charts and keeps Phase 04 as the next roadmap step.
 - Final focused verification passed with `npm run lint`, `npm run typecheck`, and the component test checkpoint.
 - Full `npm run test -- --coverage` passed after starting Docker Desktop and bringing the local Postgres container up with `npm run db:up`.

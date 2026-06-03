@@ -8,7 +8,7 @@
 ## Background
 The PR Size trend can currently show a large latest-week value that is mathematically correct but easy to misread as a completed-week trend. The trigger case was the week of 2026-05-25: the chart showed `6319` because only two measured PRs existed in that current ISO week, with line sizes `11592` and `1046`, so the median was `(11592 + 1046) / 2`. The Size team breakdown did not show `6319` because it uses selected-window team medians, not weekly all-team medians.
 
-The feature brief is `Documentation/Backlog/pr-size-trend-partial-week-confidence-brief.md`. It was adversarially reviewed and converged on a chart-only refinement: keep the existing PR Size median math, keep non-trend PR Size surfaces on the selected dashboard window, but make the weekly trend chart show the configured completed-week window (8 weeks by default) plus an explicitly detached current-week-so-far point when current-week measured data exists.
+The feature brief is `Documentation/Completed/pr-size-trend-partial-week-confidence-brief.md`. It was adversarially reviewed and converged on a chart-only refinement: keep the existing PR Size median math, keep non-trend PR Size surfaces on the selected dashboard window, but make the weekly trend chart show the configured completed-week window (8 weeks by default) plus an explicitly detached current-week-so-far point when current-week measured data exists.
 
 ## Goal
 When this fix is complete, users can see the current PR Size weekly median when it exists, but the UI clearly distinguishes completed-week trend data from current-week-so-far or low-sample data. Future-dated PR rows after `now` are excluded from all PR Size surfaces, weekly trend points expose measured counts, and shared chart behavior for PR Cycle Time and First Review remains unchanged unless explicitly opted into detached-point rendering.
@@ -444,10 +444,10 @@ No new config keys, environment variables, database columns, migrations, routes,
 ### Final Phase — Verification & Documentation
 
 #### Task 4.1 — Final verification & documentation update
-- [x] **File**: `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Backlog/phase-03-pr-size.md`, `Documentation/Backlog/phase-03-pr-size-brief.md`, `Documentation/Backlog/FEAT-003-pr-size-implementation-plan.md`
+- [x] **File**: `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Completed/phase-03-pr-size.md`, `Documentation/Completed/phase-03-pr-size-brief.md`, `Documentation/Completed/FEAT-003-pr-size-implementation-plan.md`
 - **Depends on**: Task 1.1, Task 1.2, Task 1.3, Task 2.1, Task 2.2, Task 3.1, Task 3.2, Task 3.3, Task 3.4
 - **Description**:
-  - Discover user-facing PR Size chart behavior documentation, including `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Backlog/phase-03-pr-size.md`, `Documentation/Backlog/phase-03-pr-size-brief.md`, and `Documentation/Backlog/FEAT-003-pr-size-implementation-plan.md`.
+  - Discover user-facing PR Size chart behavior documentation, including `Documentation/README.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Completed/phase-03-pr-size.md`, `Documentation/Completed/phase-03-pr-size-brief.md`, and `Documentation/Completed/FEAT-003-pr-size-implementation-plan.md`.
   - Update only documentation affected by this delivered chart behavior; do not rewrite unrelated roadmap material.
   - If the existing Phase 03 docs still claim the missing Largest PR table column is implemented, record that as a separate follow-up or correct the stale documentation without adding the column in this fix.
   - Do not add new roadmap metric scope, Jira work, AI recommendations, auth, cloud deployment, or quality metrics.

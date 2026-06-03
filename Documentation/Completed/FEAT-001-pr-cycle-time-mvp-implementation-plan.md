@@ -13,7 +13,7 @@ The dashboard must use cloned repositories under `/Users/manczg/Documents/work/d
 
 Current phase brief: [phase-01-pr-cycle-time-mvp.md](phase-01-pr-cycle-time-mvp.md)
 
-Current UI reference: [PR Cycle Time first increment](../../Assets/mockups/03-pr-cycle-time-first-increment.png)
+Current UI reference: [PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 
 ---
 

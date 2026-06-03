@@ -9,9 +9,9 @@
 
 Phase 01 ([FEAT-001](FEAT-001-pr-cycle-time-mvp-implementation-plan.md)) shipped a single-metric dashboard for PR Cycle Time. Phase 02 adds two review-health signals so leadership can see how long PRs wait for a first human review and which teams are merging without review at all. The brief (see Feature Brief link below) makes three product overrides on top of the locked phase doc: median measures **first human review** only, bot activity is shown as honest context, and the Phase 02 surface lives in a second section below the Phase 01 viewport.
 
-Feature brief: [phase-02-first-review-time-brief.md](../../Backlog/phase-02-first-review-time-brief.md) — **authoritative for product semantics where it overrides the phase doc.**
+Feature brief: [phase-02-first-review-time-brief.md](phase-02-first-review-time-brief.md) — **authoritative for product semantics where it overrides the phase doc.**
 Phase doc: [phase-02-first-review-time.md](phase-02-first-review-time.md)
-UI mockup: [04-pr-cycle-time-and-first-review.png](../../Assets/mockups/04-pr-cycle-time-and-first-review.png)
+UI mockup: [04-pr-cycle-time-and-first-review.png](../Assets/mockups/04-pr-cycle-time-and-first-review.png)
 
 ### Migration from existing partial Phase 02 implementation
 

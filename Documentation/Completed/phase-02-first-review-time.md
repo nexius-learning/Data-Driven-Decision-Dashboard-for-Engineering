@@ -7,9 +7,9 @@ Implementation plan: [FEAT-002 — First Review Time](FEAT-002-first-review-time
 
 Depends on: [Phase 01: PR Cycle Time MVP](phase-01-pr-cycle-time-mvp.md) complete (`npm run verify:phase01`).
 
-UI reference: [PR Cycle Time and First Review](../../Assets/mockups/04-pr-cycle-time-and-first-review.png).
+UI reference: [PR Cycle Time and First Review](../Assets/mockups/04-pr-cycle-time-and-first-review.png).
 
-![PR Cycle Time and First Review](../../Assets/mockups/04-pr-cycle-time-and-first-review.png)
+![PR Cycle Time and First Review](../Assets/mockups/04-pr-cycle-time-and-first-review.png)
 
 ## Goal
 
@@ -74,7 +74,7 @@ Phase 01 PR Cycle Time card, exceptions, trend, team breakdown, and copy remain 
 
 ## Mockup alignment
 
-The Phase 02 UI should match [04-pr-cycle-time-and-first-review.png](../../Assets/mockups/04-pr-cycle-time-and-first-review.png):
+The Phase 02 UI should match [04-pr-cycle-time-and-first-review.png](../Assets/mockups/04-pr-cycle-time-and-first-review.png):
 
 - Keep the Phase 01 header, range label, Local data pill, Refresh action, PR Cycle Time card, PR Cycle Time exceptions, PR Cycle Time trend, and Phase 01 team breakdown as the first viewport.
 - Place the **First Review Time** section below the Phase 01 grid with enough spacing that the dashboard reads as scrollable, not cramped.

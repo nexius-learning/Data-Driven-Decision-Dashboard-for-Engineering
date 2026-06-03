@@ -8,7 +8,7 @@
 ## Background
 FIX-003 shipped a previous-plus-current comparison trend for PR Cycle Time. First Review still exposes only the current dashboard-range weekly series, and its builder uses fixed millisecond increments that can disagree with local calendar-day boundaries across daylight-saving transitions. PR Size correctly distinguishes completed weeks from an optional detached current-week-so-far point, but its completed history still follows dashboard `range.weeks` and defaults to 8 points.
 
-The authoritative brief is `Documentation/Backlog/remaining-dashboard-16-week-trend-expansion-brief.md`. FIX-004 was explicitly scheduled as a pre-Phase-04 stabilization gate and is complete. Phase 04 Jira Flow Metrics remains the documented next feature step in `Documentation/README.md` and `Documentation/Roadmap/trackable-roadmap.md`.
+The authoritative brief is `Documentation/Completed/remaining-dashboard-16-week-trend-expansion-brief.md`. FIX-004 was explicitly scheduled as a pre-Phase-04 stabilization gate and is complete. Phase 04 Jira Flow Metrics remains the documented next feature step in `Documentation/README.md` and `Documentation/Roadmap/trackable-roadmap.md`.
 
 ## Goal
 First Review shows the previous dashboard range followed by the current dashboard range with the shipped PR Cycle Time comparison presentation, while preserving First Review card, table, exception, human-review, synced-repository, and exclusive-boundary semantics. PR Size independently shows exactly 16 completed UTC ISO weeks plus its existing optional detached current-week-so-far point, without changing card or table calculations.
@@ -179,7 +179,7 @@ No new config keys or environment variables are introduced.
 - [x] `Documentation/README.md`, section: Next Step, path: `Documentation/README.md` — schedule FIX-004 explicitly before implementation begins, while keeping phase ordering intentional.
 - [x] `Documentation/Roadmap/trackable-roadmap.md`, section: Current Next Step, path: `Documentation/Roadmap/trackable-roadmap.md` — add the scheduled stabilization work before execution.
 - [x] `Documentation/Completed/phase-02-first-review-time.md`, section: metric definition, path: `Documentation/Completed/phase-02-first-review-time.md` — correct stale bot-review wording during scheduled implementation.
-- [x] `Documentation/Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md`, section: Status and browser sign-off, path: `Documentation/Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md`.
+- [x] `Documentation/Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md`, section: Status and browser sign-off, path: `Documentation/Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md`.
 
 ---
 
@@ -412,7 +412,7 @@ No new config keys or environment variables are introduced.
   - Checkpoint: `git diff --check && npm run lint && npm run typecheck && npm run build && npm run test -- --coverage && npm run test:e2e -- tests/e2e/remaining-dashboard-trend-expansion.spec.ts && npm run verify:phase01 && npm run verify:phase02 && npm run verify:phase03`
 
 #### Task 5.2 — Manual screenshot review and plan completion
-- [x] **File**: `Documentation/Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md`, `Documentation/Backlog/remaining-dashboard-16-week-trend-expansion-brief.md`
+- [x] **File**: `Documentation/Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md`, `Documentation/Completed/remaining-dashboard-16-week-trend-expansion-brief.md`
 - **Depends on**: Task 5.1
 - **Description**:
   - Review and record rendered-browser sign-off for the same deterministic fixtures used to retain screenshots under `test-results/`:

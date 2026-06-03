@@ -23,23 +23,23 @@ Lock the product direction, save the design history, and make the first release 
 
 ### Current MVP
 
-![PR Cycle Time first increment](../../Assets/mockups/03-pr-cycle-time-first-increment.png)
+![PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 
 ### Phase 02 Reference
 
-![PR Cycle Time and First Review](../../Assets/mockups/04-pr-cycle-time-and-first-review.png)
+![PR Cycle Time and First Review](../Assets/mockups/04-pr-cycle-time-and-first-review.png)
 
 ### Phase 03 Reference
 
-![PR Cycle Time, First Review, and PR Size](../../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
+![PR Cycle Time, First Review, and PR Size](../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
 
 ### Superseded Concepts
 
-![Seven-metric MVP concept](../../Assets/mockups/02-seven-metric-mvp-concept.png)
+![Seven-metric MVP concept](../Assets/mockups/02-seven-metric-mvp-concept.png)
 
 This version is superseded because it shows too many metrics before their data collection exists.
 
-![Expanded dashboard concept](../../Assets/mockups/01-expanded-dashboard-concept.png)
+![Expanded dashboard concept](../Assets/mockups/01-expanded-dashboard-concept.png)
 
 This version is superseded because it includes broader navigation, quality views, and decision areas beyond the MVP.
 

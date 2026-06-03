@@ -7,9 +7,9 @@ Implementation plan: [FEAT-003 — PR Size](FEAT-003-pr-size-implementation-plan
 
 Depends on: [Phase 02: First Review Time](../Completed/phase-02-first-review-time.md) complete (`npm run verify:phase02`).
 
-UI reference: [PR Cycle Time, First Review, and PR Size](../../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png).
+UI reference: [PR Cycle Time, First Review, and PR Size](../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png).
 
-![PR Cycle Time, First Review, and PR Size](../../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
+![PR Cycle Time, First Review, and PR Size](../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
 
 ## Goal
 

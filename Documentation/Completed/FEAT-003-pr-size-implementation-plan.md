@@ -7,7 +7,7 @@
 
 ## Background
 
-Phase 02 ([FEAT-002](FEAT-002-first-review-time-implementation-plan.md)) shipped First Review Time. Phase 03 adds the third metric leg: PR Size. Engineering leads can now see cycle time, review latency, and code churn side-by-side. The brief ([phase-03-pr-size-brief.md](../../Backlog/phase-03-pr-size-brief.md)) is authoritative for product semantics. The phase doc ([phase-03-pr-size.md](phase-03-pr-size.md)) is the high-level roadmap entry.
+Phase 02 ([FEAT-002](FEAT-002-first-review-time-implementation-plan.md)) shipped First Review Time. Phase 03 adds the third metric leg: PR Size. Engineering leads can now see cycle time, review latency, and code churn side-by-side. The brief ([phase-03-pr-size-brief.md](phase-03-pr-size-brief.md)) is authoritative for product semantics. The phase doc ([phase-03-pr-size.md](phase-03-pr-size.md)) is the high-level roadmap entry.
 
 PR Size is computed from local git — `merge_commit_sha` is already returned by the GitHub list-PRs response but was never extracted. Storing it costs nothing; size is computed via `git diff <sha>^1 <sha> --shortstat` for merge and squash commits, with a GitHub PR detail API fallback for rebase-merged PRs.
 

@@ -19,9 +19,9 @@ This is the execution checklist for humans and LLM agents.
 
 Completed stabilization gate before the next feature phase: **FIX-004: Remaining Dashboard 16-Week Trend Expansion**
 
-FIX-004 plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
+FIX-004 plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
 
-FIX-004 authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Backlog/remaining-dashboard-16-week-trend-expansion-brief.md)
+FIX-004 authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Completed/remaining-dashboard-16-week-trend-expansion-brief.md)
 
 Next feature phase: **Phase 04: Jira Flow Metrics**
 
@@ -31,7 +31,7 @@ Phase 01 (complete): [phase-01-pr-cycle-time-mvp.md](../Completed/phase-01-pr-cy
 
 Phase 02 (implemented): [phase-02-first-review-time.md](../Completed/phase-02-first-review-time.md) — implementation plan [FEAT-002-first-review-time-implementation-plan.md](../Completed/FEAT-002-first-review-time-implementation-plan.md).
 
-Phase 03 (implemented): [phase-03-pr-size.md](../Backlog/phase-03-pr-size.md) — implementation plan [FEAT-003-pr-size-implementation-plan.md](../Backlog/FEAT-003-pr-size-implementation-plan.md).
+Phase 03 (implemented): [phase-03-pr-size.md](../Completed/phase-03-pr-size.md) — implementation plan [FEAT-003-pr-size-implementation-plan.md](../Completed/FEAT-003-pr-size-implementation-plan.md).
 
 Current UI reference: [PR Cycle Time, First Review, and PR Size](../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
 
@@ -95,9 +95,9 @@ Goal: add review-latency visibility after PR Cycle Time is working.
 
 ## Phase 03: PR Size (Implemented)
 
-Detailed file: [phase-03-pr-size.md](../Backlog/phase-03-pr-size.md)
+Detailed file: [phase-03-pr-size.md](../Completed/phase-03-pr-size.md)
 
-Implementation plan: [FEAT-003-pr-size-implementation-plan.md](../Backlog/FEAT-003-pr-size-implementation-plan.md)
+Implementation plan: [FEAT-003-pr-size-implementation-plan.md](../Completed/FEAT-003-pr-size-implementation-plan.md)
 
 UI reference: [PR Cycle Time, First Review, and PR Size](../Assets/mockups/05-pr-cycle-time-first-review-and-pr-size.png)
 
@@ -117,9 +117,9 @@ Goal: detect oversized PR patterns.
 
 ## FIX-004: Remaining Dashboard 16-Week Trend Expansion (Completed Stabilization Gate)
 
-Implementation plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Backlog/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
+Implementation plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
 
-Authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Backlog/remaining-dashboard-16-week-trend-expansion-brief.md)
+Authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../Completed/remaining-dashboard-16-week-trend-expansion-brief.md)
 
 Goal: stabilize the existing dashboard trends before Phase 04 begins. Jira Flow Metrics remains the next feature phase.
 

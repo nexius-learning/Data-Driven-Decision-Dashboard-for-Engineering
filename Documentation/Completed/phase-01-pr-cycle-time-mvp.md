@@ -15,7 +15,7 @@ PR Cycle Time is measured from PR opened to PR merged.
 
 Use this mockup as the current implementation reference:
 
-![PR Cycle Time first increment](../../Assets/mockups/03-pr-cycle-time-first-increment.png)
+![PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 
 The UI includes:
 
@@ -57,7 +57,7 @@ Verified by **FEAT-001** Task 7.2 (`npm run verify:phase01`).
 
 ## Mockup alignment
 
-**Mostly aligned** with [03-pr-cycle-time-first-increment.png](../../Assets/mockups/03-pr-cycle-time-first-increment.png): header, single median card, exceptions, 8-week trend, team table, and freshness strip match the intent. The mockup implies an explicit range control; the MVP shows a fixed **Last 8 weeks** label until range selection is scheduled outside Phase 01.
+**Mostly aligned** with [03-pr-cycle-time-first-increment.png](../Assets/mockups/03-pr-cycle-time-first-increment.png): header, single median card, exceptions, 8-week trend, team table, and freshness strip match the intent. The mockup implies an explicit range control; the MVP shows a fixed **Last 8 weeks** label until range selection is scheduled outside Phase 01.
 
 ## Acceptance Criteria (reference)
 

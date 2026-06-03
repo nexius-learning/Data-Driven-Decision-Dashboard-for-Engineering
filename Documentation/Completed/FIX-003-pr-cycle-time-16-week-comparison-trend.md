@@ -6,7 +6,7 @@
 ---
 
 ## Background
-The Median PR Cycle Time card compares the current dashboard range against the previous 8-week comparison range, but the visible PR Cycle Time trend chart only shows the current 8 buckets. This made an observed live case confusing: the card showed a small previous median and a large percent increase, while the chart showed only current-period weekly medians. The feature brief is `Documentation/Backlog/pr-cycle-time-16-week-comparison-trend-brief.md`.
+The Median PR Cycle Time card compares the current dashboard range against the previous 8-week comparison range, but the visible PR Cycle Time trend chart only shows the current 8 buckets. This made an observed live case confusing: the card showed a small previous median and a large percent increase, while the chart showed only current-period weekly medians. The feature brief is `Documentation/Completed/pr-cycle-time-16-week-comparison-trend-brief.md`.
 
 This plan keeps the metric math unchanged and changes only PR Cycle Time trend presentation. It intentionally starts with PR Cycle Time before broadening the pattern to First Review or PR Size.
 
@@ -180,8 +180,8 @@ No new config keys or environment variables are introduced.
 ---
 
 ## Documentation update
-- [x] `Documentation/Backlog/pr-cycle-time-16-week-comparison-trend-brief.md`, section: Recommendation, path: `Documentation/Backlog/pr-cycle-time-16-week-comparison-trend-brief.md`
-- [x] `Documentation/Backlog/FIX-003-pr-cycle-time-16-week-comparison-trend.md`, section: Status, path: `Documentation/Backlog/FIX-003-pr-cycle-time-16-week-comparison-trend.md`
+- [x] `Documentation/Completed/pr-cycle-time-16-week-comparison-trend-brief.md`, section: Recommendation, path: `Documentation/Completed/pr-cycle-time-16-week-comparison-trend-brief.md`
+- [x] `Documentation/Completed/FIX-003-pr-cycle-time-16-week-comparison-trend.md`, section: Status, path: `Documentation/Completed/FIX-003-pr-cycle-time-16-week-comparison-trend.md`
 
 ---
 
@@ -413,7 +413,7 @@ No new config keys or environment variables are introduced.
   - Checkpoint: `npm run test -- tests/components/weekly-trend-chart.test.tsx tests/components/first-review-trend-chart.test.tsx tests/components/PrSizeTrendChart.test.tsx`
 
 #### Task 5.2 — Final verification and documentation status
-- [x] **File**: `Documentation/Backlog/FIX-003-pr-cycle-time-16-week-comparison-trend.md`, `Documentation/Backlog/pr-cycle-time-16-week-comparison-trend-brief.md`
+- [x] **File**: `Documentation/Completed/FIX-003-pr-cycle-time-16-week-comparison-trend.md`, `Documentation/Completed/pr-cycle-time-16-week-comparison-trend-brief.md`
 - **Depends on**: Task 5.1
 - **Description**:
   - Update this plan status from `Draft` to `Complete` only after implementation and verification pass.

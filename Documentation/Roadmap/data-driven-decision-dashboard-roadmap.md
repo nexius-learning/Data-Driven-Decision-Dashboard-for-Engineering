@@ -56,7 +56,7 @@ When a new mockup is generated, implement it by preserving the existing sections
 - [Phase 00: Product refinement and UI](../Completed/phase-00-product-refinement-and-ui.md)
 - [Phase 01: PR Cycle Time MVP](../Completed/phase-01-pr-cycle-time-mvp.md)
 - [Phase 02: First Review Time](../Completed/phase-02-first-review-time.md)
-- [Phase 03: PR Size](../Backlog/phase-03-pr-size.md)
+- [Phase 03: PR Size](../Completed/phase-03-pr-size.md)
 - [Phase 04: Jira Flow Metrics](../Backlog/phase-04-jira-flow-metrics.md)
 - [Phase 05: Quality and Cloud Readiness](../Backlog/phase-05-quality-and-cloud-readiness.md)
 
