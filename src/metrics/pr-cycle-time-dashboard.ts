@@ -197,6 +197,12 @@ const MS_PER_HOUR = 1000 * 60 * 60
 export const DASHBOARD_UNASSIGNED_TEAM = 'Unassigned'
 export const PR_SIZE_COMPLETED_TREND_WEEKS = 16
 
+function compareTeamLabels(a: string, b: string): number {
+  if (a === DASHBOARD_UNASSIGNED_TEAM && b !== DASHBOARD_UNASSIGNED_TEAM) return 1
+  if (b === DASHBOARD_UNASSIGNED_TEAM && a !== DASHBOARD_UNASSIGNED_TEAM) return -1
+  return a.localeCompare(b)
+}
+
 function isMetricsRepository(repo: typeof repositories.$inferSelect): boolean {
   return repo.active && repo.scanStatus === 'ready'
 }
@@ -294,7 +300,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
       url: row.url,
       repositoryId: row.repositoryId,
       repoFullName,
-      team: repo?.team ?? null,
+      team: repo ? repoTeamLabel(repo) : DASHBOARD_UNASSIGNED_TEAM,
       mergedAt: row.mergedAt,
       additions: row.additions,
       deletions: row.deletions,
@@ -328,7 +334,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
   for (const r of metricsRepos) {
     teamLabels.add(repoTeamLabel(r))
   }
-  const sortedTeamLabels = [...teamLabels].sort((a, b) => a.localeCompare(b))
+  const sortedTeamLabels = [...teamLabels].sort(compareTeamLabels)
 
   const teamBreakdown: TeamBreakdownRow[] = sortedTeamLabels.map((teamLabel) => {
     const repoIdsForTeam = new Set(
@@ -456,10 +462,10 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
   const prSizeMetric = computePrSizeMetric(currentSizePrs, priorSizePrs)
   const currentTeamPrs = new Map<string, PrSizeRecord[]>()
   for (const p of currentSizePrs) {
-    if (p.team === null) continue
-    const list = currentTeamPrs.get(p.team) ?? []
+    const team = p.team?.trim() ? p.team : DASHBOARD_UNASSIGNED_TEAM
+    const list = currentTeamPrs.get(team) ?? []
     list.push(p)
-    currentTeamPrs.set(p.team, list)
+    currentTeamPrs.set(team, list)
   }
   const prSizeOptional: PrSize | undefined =
     prSizeMetric.qualifyingPrCount > 0
@@ -469,7 +475,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
           weeklyTrend: getPrSizeWeeklyTrend(sizePrsForTrend, PR_SIZE_COMPLETED_TREND_WEEKS, now, {
             includeCurrentPartial: true,
           }),
-          teamBreakdown: getPrSizeTeamBreakdown(sizePrsForTrend, current, previous),
+          teamBreakdown: getPrSizeTeamBreakdown(sizePrsForTrend, current, previous, sortedTeamLabels),
         }
       : undefined
 
@@ -613,8 +619,9 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
   }))
 
   const teamLabelsFR = new Set<string>()
+  for (const r of syncedRepos) teamLabelsFR.add(repoTeamLabel(r))
   for (const a of currentAggs) teamLabelsFR.add(a.team)
-  const sortedTeamLabelsFR = [...teamLabelsFR].sort((a, b) => a.localeCompare(b))
+  const sortedTeamLabelsFR = [...teamLabelsFR].sort(compareTeamLabels)
 
   const hygieneCounts = countMergeWithoutReviewByTeam(currentAggs)
 

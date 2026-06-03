@@ -264,4 +264,37 @@ describe('dashboard phase 02 integration', () => {
     const out = await getPrCycleTimeDashboard({ db, now })
     expect(out.firstReview?.comparisonWeeklyTrend[8]?.medianHours).toBe(3)
   })
+
+  it('dashboard_first_review_team_breakdown_includes_synced_team_with_no_current_prs', async () => {
+    const repo = await makeRepo(new Date('2026-04-28T00:00:00Z'))
+    await db
+      .update(repositories)
+      .set({ team: 'Tartalomeloállitas' })
+      .where(eq(repositories.id, repo.id))
+
+    const out = await getPrCycleTimeDashboard({ db, now: new Date('2026-04-30T00:00:00Z') })
+    const row = out.firstReview?.teamBreakdown.find((r) => r.team === 'Tartalomeloállitas')
+    expect(row).toMatchObject({
+      reviewedPrs: 0,
+      medianHours: null,
+      trendPercent: null,
+      noReviewMergeCount: null,
+    })
+  })
+
+  it('dashboard_first_review_team_breakdown_keeps_unassigned_at_bottom', async () => {
+    const assignedRepo = await makeRepo(new Date('2026-04-28T00:00:00Z'), 'svc-assigned')
+    const unassignedRepo = await makeRepo(new Date('2026-04-28T00:00:00Z'), 'svc-unassigned')
+    await db
+      .update(repositories)
+      .set({ team: 'Alpha', active: true, scanStatus: 'ready' })
+      .where(eq(repositories.id, assignedRepo.id))
+    await db
+      .update(repositories)
+      .set({ team: null, active: true, scanStatus: 'ready' })
+      .where(eq(repositories.id, unassignedRepo.id))
+
+    const out = await getPrCycleTimeDashboard({ db, now: new Date('2026-04-30T00:00:00Z') })
+    expect(out.firstReview?.teamBreakdown.map((r) => r.team).at(-1)).toBe('Unassigned')
+  })
 })

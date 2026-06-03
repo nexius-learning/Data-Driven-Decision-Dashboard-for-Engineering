@@ -6,6 +6,7 @@
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-warn: #d97706;
+  --color-danger: #dc2626;
   --color-teal: #0d9488;
   --color-dot-green: #22c55e;
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -627,6 +628,13 @@
   color: var(--color-text);
 }
 
+.pr-dashboard__team-note {
+  color: var(--color-danger);
+  font-size: 0.75rem;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
 .pr-dashboard__team-dot {
   width: 10px;
   height: 10px;
@@ -649,6 +657,10 @@
 
 .pr-dashboard__team-dot--caution {
   background: #ca8a04;
+}
+
+.pr-dashboard__team-dot--unassigned {
+  background: var(--color-danger);
 }
 
 .pr-dashboard__num {

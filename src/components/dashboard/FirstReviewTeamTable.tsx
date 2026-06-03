@@ -1,6 +1,7 @@
 import type { FirstReviewTeamRow } from '~/metrics/pr-cycle-time-dashboard'
 import { CardHowToRead } from '~/components/dashboard/card-how-to-read'
 import { formatCycleDuration } from '~/components/dashboard/format-cycle-duration'
+import { TeamLabel } from '~/components/dashboard/team-label'
 import { TrendComparison } from '~/components/dashboard/trend-comparison'
 
 type Props = {
@@ -41,10 +42,7 @@ export function FirstReviewTeamTable({ rows }: Props) {
               rows.map((r) => (
                 <tr key={r.team}>
                   <td>
-                    <span className="pr-dashboard__team-cell">
-                      <span className={teamDotClass(r, rows)} aria-hidden="true" />
-                      {r.team}
-                    </span>
+                    <TeamLabel team={r.team} dotClassName={teamDotClass(r, rows)} />
                   </td>
                   <td className="pr-dashboard__num">{r.reviewedPrs}</td>
                   <td className={medianCellClass(r, rows)}>{fmtHours(r.medianHours)}</td>

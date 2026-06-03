@@ -454,8 +454,8 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(screen.getByText(/\+1266%/)).toBeInTheDocument()
   })
 
-  it('dashboard_renders_unassigned_team', () => {
-    render(
+  it('dashboard_renders_unassigned_team_with_attention_marker_and_mapping_comment', () => {
+    const { container } = render(
       <PrCycleTimeDashboard
         data={baseDashboard({
           teamBreakdown: [
@@ -472,7 +472,9 @@ describe.sequential('PrCycleTimeDashboard', () => {
       />,
     )
     const table = screen.getByRole('table', { name: 'Team breakdown' })
-    expect(within(table).getByRole('cell', { name: 'Unassigned' })).toBeInTheDocument()
+    expect(within(table).getByRole('cell', { name: /Unassigned/ })).toBeInTheDocument()
+    expect(container.querySelector('.pr-dashboard__team-dot--unassigned')).toBeInTheDocument()
+    expect(within(table).getByText('needs team mapping')).toBeInTheDocument()
   })
 
   it('dashboard_renders_pr_cycle_time_exceptions_only', () => {

@@ -54,6 +54,22 @@ describe('getPrSizeTeamBreakdown', () => {
     expect(rows.map((r) => r.team)).toEqual(['beta'])
   })
 
+  it('includes_configured_team_with_no_current_size_data', () => {
+    const rows = getPrSizeTeamBreakdown(
+      [pr({ team: 'alpha', ...sizedLines(100) })],
+      currentWindow,
+      priorWindow,
+      ['Tartalomeloállitas'],
+    )
+    const configured = rows.find((r) => r.team === 'Tartalomeloállitas')
+    expect(configured).toMatchObject({
+      prCount: 0,
+      medianLines: null,
+      medianChangedFiles: null,
+      trend: '—',
+    })
+  })
+
   it('trend_up_when_current_exceeds_prior_by_10pct', () => {
     const rows = breakdown([
       pr({ ...sizedLines(37), mergedAt: new Date('2026-02-01') }),
@@ -211,7 +227,7 @@ describe('getPrSizeTeamBreakdown', () => {
     expect(rows.map((r) => r.team)).toEqual(['high', 'mid', 'low'])
   })
 
-  it('null_team_repos_excluded', () => {
+  it('null_team_repos_grouped_as_unassigned_at_bottom', () => {
     const rows = breakdown([
       pr({ team: null, ...sizedLines(500) }),
       pr({ team: 'alpha', ...sizedLines(10) }),
@@ -219,6 +235,6 @@ describe('getPrSizeTeamBreakdown', () => {
       pr({ ...sizedLines(10), mergedAt: new Date('2025-11-02') }),
       pr({ ...sizedLines(10), mergedAt: new Date('2025-11-03') }),
     ])
-    expect(rows.map((r) => r.team)).toEqual(['alpha'])
+    expect(rows.map((r) => r.team)).toEqual(['alpha', 'Unassigned'])
   })
 })

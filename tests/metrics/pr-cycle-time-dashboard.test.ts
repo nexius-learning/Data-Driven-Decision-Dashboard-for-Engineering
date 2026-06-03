@@ -404,11 +404,17 @@ describe('pr-cycle-time-dashboard', () => {
     expect(d.weeklyTrend).toHaveLength(8)
   })
 
-  it('team_breakdown_groups_unassigned_repositories', async () => {
+  it('team_breakdown_groups_unassigned_repositories_at_bottom', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)
     const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+    const assignedRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'assigned') })
     const rid = await insertRepo({ team: null, path: path.join(testRoot, 'orphan') })
+    await insertPr(assignedRid, {
+      number: 2,
+      openedAt: new Date(merged.getTime() - 2 * 3600000),
+      mergedAt: merged,
+    })
     await insertPr(rid, {
       number: 1,
       openedAt: new Date(merged.getTime() - 10 * 3600000),
@@ -416,6 +422,7 @@ describe('pr-cycle-time-dashboard', () => {
     })
     const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
     expect(d.teamBreakdown.some((t) => t.team === DASHBOARD_UNASSIGNED_TEAM)).toBe(true)
+    expect(d.teamBreakdown.at(-1)?.team).toBe(DASHBOARD_UNASSIGNED_TEAM)
   })
 
   it('exceptions_detect_worsening_team', async () => {

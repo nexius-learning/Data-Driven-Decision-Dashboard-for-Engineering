@@ -17,6 +17,7 @@ import { DASHBOARD_SOURCE_PATHS } from '~/metrics/dashboard-source-paths'
 import { WeeklyTrendChart } from '~/components/dashboard/weekly-trend-chart'
 import { FirstReviewSection } from '~/components/dashboard/FirstReviewSection'
 import { PrSizeSection } from '~/components/dashboard/PrSizeSection'
+import { TeamLabel } from '~/components/dashboard/team-label'
 
 import './PrCycleTimeDashboard.css'
 
@@ -400,10 +401,7 @@ export function PrCycleTimeDashboard({
                 {data.teamBreakdown.map((row) => (
                   <tr key={row.team}>
                     <td>
-                      <span className="pr-dashboard__team-cell">
-                        <span className={teamDotClass(row, data.teamBreakdown)} aria-hidden="true" />
-                        {row.team}
-                      </span>
+                      <TeamLabel team={row.team} dotClassName={teamDotClass(row, data.teamBreakdown)} />
                     </td>
                     <td className="pr-dashboard__num">{row.mergedPrs}</td>
                     <td className={medianCellClass(row, data.teamBreakdown)}>{formatCycleDuration(row.medianHours)}</td>

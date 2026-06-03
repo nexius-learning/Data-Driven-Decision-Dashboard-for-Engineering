@@ -1,6 +1,8 @@
 import { median } from '~/metrics/math'
 import type { PrSizeRecord } from '~/metrics/pr-size-types'
 
+const UNASSIGNED_TEAM = 'Unassigned'
+
 export type PrSizeTeamRow = {
   team: string
   prCount: number
@@ -25,6 +27,16 @@ function hasChangedFiles(p: PrSizeRecord): boolean {
 
 function prLines(p: PrSizeRecord): number {
   return p.additions! + p.deletions!
+}
+
+function teamLabel(team: string | null): string {
+  return team?.trim() ? team : UNASSIGNED_TEAM
+}
+
+function compareTeamNames(a: string, b: string): number {
+  if (a === UNASSIGNED_TEAM && b !== UNASSIGNED_TEAM) return 1
+  if (b === UNASSIGNED_TEAM && a !== UNASSIGNED_TEAM) return -1
+  return a.localeCompare(b)
 }
 
 function inWindow(pr: PrSizeRecord, window: { from: Date; to: Date }): boolean {
@@ -61,18 +73,18 @@ export function getPrSizeTeamBreakdown(
   prs: PrSizeRecord[],
   currentWindow: { from: Date; to: Date },
   priorWindow: { from: Date; to: Date },
+  teamNames: string[] = [],
 ): PrSizeTeamRow[] {
-  const teams = new Set<string>()
+  const teams = new Set(teamNames)
   for (const p of prs) {
-    if (p.team !== null) teams.add(p.team)
+    if (hasSize(p)) teams.add(teamLabel(p.team))
   }
 
   const rows: PrSizeTeamRow[] = []
 
   for (const team of teams) {
-    const teamPrs = prs.filter((p) => p.team === team)
+    const teamPrs = prs.filter((p) => teamLabel(p.team) === team)
     const currentSized = teamPrs.filter((p) => inWindow(p, currentWindow) && hasSize(p))
-    if (currentSized.length === 0) continue
 
     const priorSized = teamPrs.filter((p) => inWindow(p, priorWindow) && hasSize(p))
     const medianLines = median(currentSized.map(prLines))
@@ -89,8 +101,8 @@ export function getPrSizeTeamBreakdown(
       priorSized.length,
     )
 
-    let largest = currentSized[0]!
-    let largestLines = prLines(largest)
+    let largest = currentSized[0] ?? null
+    let largestLines = largest ? prLines(largest) : 0
     for (const p of currentSized.slice(1)) {
       const lines = prLines(p)
       if (lines > largestLines) {
@@ -107,19 +119,21 @@ export function getPrSizeTeamBreakdown(
       previousMedianLines: priorMedianLines,
       trendPercent,
       trend: computeTrend(medianLines, priorMedianLines, currentSized.length, priorSized.length),
-      largestPrTitle: largest.title,
-      largestPrRepo: largest.repoFullName,
-      largestPrUrl: largest.url,
+      largestPrTitle: largest?.title ?? '',
+      largestPrRepo: largest?.repoFullName ?? '',
+      largestPrUrl: largest?.url ?? '',
       largestPrLines: largestLines,
     })
   }
 
   rows.sort((a, b) => {
-    if (a.medianLines === null && b.medianLines === null) return a.team.localeCompare(b.team)
+    const teamOrder = compareTeamNames(a.team, b.team)
+    if (a.team === UNASSIGNED_TEAM || b.team === UNASSIGNED_TEAM) return teamOrder
+    if (a.medianLines === null && b.medianLines === null) return teamOrder
     if (a.medianLines === null) return 1
     if (b.medianLines === null) return -1
     if (b.medianLines !== a.medianLines) return b.medianLines - a.medianLines
-    return a.team.localeCompare(b.team)
+    return teamOrder
   })
 
   return rows

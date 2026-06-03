@@ -48,14 +48,14 @@ describe('dashboard phase 03 integration', () => {
     process.env.TEAM_MAPPING_PATH = mappingPath
   })
 
-  async function makeRepo(reviewSyncedAt: Date | null = null) {
+  async function makeRepo(reviewSyncedAt: Date | null = null, repo = 'svc') {
     const cand: RepositoryCandidate = {
-      name: 'svc',
-      path: path.join(repoRoot, `svc-${randomUUID()}`),
+      name: repo,
+      path: path.join(repoRoot, `${repo}-${randomUUID()}`),
       rootPath: repoRoot,
-      remoteUrl: 'https://github.com/gde-mit/svc.git',
+      remoteUrl: `https://github.com/gde-mit/${repo}.git`,
       owner: 'gde-mit',
-      repo: 'svc',
+      repo,
     }
     await mkdir(cand.path, { recursive: true })
     await upsertRepositories(
@@ -401,5 +401,35 @@ describe('dashboard phase 03 integration', () => {
     expect(priorTrendPoint?.medianLines).toBe(900)
     expect(priorTrendPoint?.measuredPrCount).toBe(1)
     expect(out.prSize?.weeklyTrend.every((p) => p.isPartialWeek === false)).toBe(true)
+  })
+
+  it('dashboard_pr_size_team_breakdown_includes_ready_team_with_no_current_size_prs', async () => {
+    const sizedRepo = await makeRepo()
+    const emptyRepo = await makeRepo(null, 'svc-tartalom')
+    await db
+      .update(repositories)
+      .set({ active: true, scanStatus: 'ready' })
+      .where(eq(repositories.id, sizedRepo.id))
+    await db
+      .update(repositories)
+      .set({ team: 'Tartalomeloállitas', active: true, scanStatus: 'ready' })
+      .where(eq(repositories.id, emptyRepo.id))
+    await insertMergedPr(sizedRepo.id, {
+      mergedAt: currentMergedAt(4),
+      number: 1,
+      additions: 80,
+      deletions: 20,
+      changedFiles: 2,
+    })
+
+    const out = await getPrCycleTimeDashboard({ db, now })
+    const row = out.prSize?.teamBreakdown.find((r) => r.team === 'Tartalomeloállitas')
+    expect(row).toMatchObject({
+      prCount: 0,
+      medianLines: null,
+      medianChangedFiles: null,
+      trendPercent: null,
+      trend: '—',
+    })
   })
 })

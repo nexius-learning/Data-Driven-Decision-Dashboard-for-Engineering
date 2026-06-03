@@ -110,6 +110,13 @@ describe('PrSizeSection', () => {
     expect(within(section).getByTestId('pr-size-team-table')).toBeTruthy()
   })
 
+  it('size_team_breakdown_shows_how_to_read_hint', () => {
+    render(<PrSizeSection prSize={prSize()} />)
+    const table = screen.getByTestId('pr-size-team-table')
+    expect(within(table).getByText('How to read this')).toBeTruthy()
+    expect(within(table).getByText(/Per-team median changed lines/i)).toBeTruthy()
+  })
+
   it('section_shows_baseline_pending_state', () => {
     render(
       <PrSizeSection
@@ -140,5 +147,31 @@ describe('PrSizeSection', () => {
     render(<PrCycleTimeDashboard data={dashboard()} />)
     expect(screen.getByTestId('phase02-section')).toBeTruthy()
     expect(screen.getByTestId('phase03-section')).toBeTruthy()
+  })
+
+  it('pr_size_unassigned_team_gets_attention_marker_and_mapping_comment', () => {
+    render(
+      <PrSizeSection
+        prSize={prSize({
+          teamBreakdown: [
+            {
+              team: 'Unassigned',
+              prCount: 1,
+              medianLines: 100,
+              medianChangedFiles: 2,
+              previousMedianLines: null,
+              trendPercent: null,
+              trend: '—',
+              largestPrTitle: 'PR 1',
+              largestPrRepo: 'gde-mit/svc',
+              largestPrUrl: 'https://github.com/gde-mit/svc/pull/1',
+              largestPrLines: 100,
+            },
+          ],
+        })}
+      />,
+    )
+    expect(document.querySelector('.pr-dashboard__team-dot--unassigned')).toBeTruthy()
+    expect(screen.getByText('needs team mapping')).toBeTruthy()
   })
 })

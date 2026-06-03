@@ -78,4 +78,10 @@ describe('FirstReviewTeamTable', () => {
     expect(screen.getByText('↑ +100%')).toBeTruthy()
     expect(screen.getByText('(4h)')).toBeTruthy()
   })
+
+  it('unassigned_team_gets_attention_marker_and_mapping_comment', () => {
+    const { container } = render(<FirstReviewTeamTable rows={[row({ team: 'Unassigned' })]} />)
+    expect(container.querySelector('.pr-dashboard__team-dot--unassigned')).toBeTruthy()
+    expect(screen.getByText('needs team mapping')).toBeTruthy()
+  })
 })

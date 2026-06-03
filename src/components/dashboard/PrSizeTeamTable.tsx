@@ -1,4 +1,6 @@
 import type { PrSizeTeamRow } from '~/metrics/pr-cycle-time-dashboard'
+import { CardHowToRead } from '~/components/dashboard/card-how-to-read'
+import { TeamLabel } from '~/components/dashboard/team-label'
 import { TrendComparison } from '~/components/dashboard/trend-comparison'
 
 type Props = {
@@ -28,6 +30,10 @@ export function PrSizeTeamTable({ rows }: Props) {
       aria-label="Size team breakdown"
     >
       <h3 className="pr-dashboard__card-title">Size team breakdown</h3>
+      <CardHowToRead>
+        Per-team median changed lines, median changed files, and size trend versus the previous 8 weeks, based on
+        merged PRs with collected size data.
+      </CardHowToRead>
       <div className="pr-dashboard__table-wrap">
         <table className="pr-dashboard__table" aria-label="Size team breakdown">
           <thead>
@@ -50,10 +56,7 @@ export function PrSizeTeamTable({ rows }: Props) {
               rows.map((r) => (
                 <tr key={r.team}>
                   <td>
-                    <span className="pr-dashboard__team-cell">
-                      <span className={teamDotClass(r, rows)} aria-hidden="true" />
-                      {r.team}
-                    </span>
+                    <TeamLabel team={r.team} dotClassName={teamDotClass(r, rows)} />
                   </td>
                   <td className="pr-dashboard__num">{r.prCount}</td>
                   <td className={medianCellClass(r, rows)}>{formatMedianLines(r.medianLines)}</td>
