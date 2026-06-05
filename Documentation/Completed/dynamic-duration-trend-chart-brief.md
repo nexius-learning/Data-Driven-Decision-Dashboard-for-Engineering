@@ -1,8 +1,12 @@
 # Feature Brief: Dynamic Duration Trend Chart
 
+Status: Implemented as FIX-001.
+
+> Current follow-up note: later FIX-003/FIX-004 comparison-trend work reused the same shared chart area, but did not change this brief's core duration-unit contract.
+
 ## Problem
 
-The 8-week PR Cycle Time and First Review trend charts can show small duration values as `0.0` because hour-based data is plotted and labeled in days.
+Before FIX-001, the 8-week PR Cycle Time and First Review trend charts could show small duration values as `0.0` because hour-based data was plotted and labeled in days.
 
 ## Goal
 

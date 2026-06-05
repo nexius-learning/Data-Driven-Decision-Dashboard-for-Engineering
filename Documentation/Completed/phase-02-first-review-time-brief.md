@@ -3,6 +3,9 @@
 Source spec: [phase-02-first-review-time.md](phase-02-first-review-time.md)
 Mockup: [04-pr-cycle-time-and-first-review.png](../Assets/mockups/04-pr-cycle-time-and-first-review.png)
 Refined: 2026-05-16
+Status: Implemented as FEAT-002; later chart presentation updated by FIX-004.
+
+> Current follow-up note: FEAT-002 shipped the human-review semantics and hidden-until-synced behavior described here. FIX-004 later changed the visible First Review trend from the original 8-week single-series presentation to the shared comparison presentation.
 
 ## Problem
 
@@ -10,7 +13,7 @@ Leadership can see PR cycle time (Phase 01) but has no visibility into how long 
 
 ## Goal
 
-After a sync, the dashboard shows a Phase 02 section below the Phase 01 viewport containing: median First Review Time, an 8-week trend, a per-team breakdown, a review-latency exceptions panel, and a merge-without-review hygiene signal. Median measures **first human review** only; bot review activity is shown as honest context, not folded into the metric. Phase 01 surface is unchanged.
+After a sync, the dashboard shows a Phase 02 section below the Phase 01 viewport containing: median First Review Time, a trend, a per-team breakdown, a review-latency exceptions panel, and a merge-without-review hygiene signal. Median measures **first human review** only; bot review activity is shown as honest context, not folded into the metric. Phase 01 surface is unchanged.
 
 ## Users & Context
 

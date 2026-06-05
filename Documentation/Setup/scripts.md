@@ -1,7 +1,7 @@
 # Scripts and CLI commands
 
-Status: Draft  
-Last updated: 2026-05-14
+Status: Current
+Last updated: 2026-06-04
 
 ## Purpose
 
@@ -13,12 +13,12 @@ Prerequisites for database and GitHub commands are covered in **[Local onboardin
 
 | Script | Command | What it does |
 | ------ | ------- | ------------ |
-| **Full dev session** | `./scripts/dev.sh` | Runs `dev-up.sh`, then starts the Vite dev server (`npm run dev`). Blocks the terminal. Pressing **Ctrl+C** stops the frontend and automatically runs `dev-down.sh` to tear down Postgres. |
-| Local stack bootstrap | `./scripts/dev-up.sh` | Same as `npm run stack:up`: runs `npm install`, creates `.env` from `.env.example` if missing, sources `.env`, starts Postgres via Docker Compose (`--wait` until healthy), runs `npm run db:migrate`. Does **not** start the Vite dev server. |
+| **Full dev session** | `./scripts/dev.sh` | Runs `dev-up.sh`, clears leaked E2E refresh stubs, then starts the Vite dev server (`npm run dev`). Blocks the terminal. Pressing **Ctrl+C** stops the frontend and automatically runs `dev-down.sh` to tear down Postgres. |
+| Local stack bootstrap | `./scripts/dev-up.sh` | Same as `npm run stack:up`: runs `npm install`, creates `.env` from `.env.example` if missing, clears leaked E2E refresh stubs, sources `.env`, starts Postgres via Docker Compose (`--wait` until healthy), runs `npm run db:migrate`. Does **not** start the Vite dev server. |
 | Stop Compose Postgres | `./scripts/dev-down.sh` | Same as `npm run stack:down`: runs `docker compose down`. The named volume keeps database data until you remove it manually (see script output). |
-| Clone all org repos (full-Docker workflow) | `docker compose exec app bash scripts/docker/clone-github-org-repos.sh` | For the **optional full-Docker setup** (see [Local onboarding](local-onboarding.md#optional-full-docker-app--postgres-in-containers)). Reads `GITHUB_TOKEN` / `GITHUB_SYNC_OWNER` / `DASHBOARD_REPO_ROOT` from the container env, paginates the org repos endpoint, filters via `config/team-mapping.json`, and clones every non-archived, non-excluded repo into `/repos` (bind-mounted to your host). Idempotent — re-running skips existing clones. |
+| Clone all org repos (full-Docker workflow) | `docker compose exec app bash scripts/docker/clone-github-org-repos.sh` | For the **optional full-Docker setup** (see [Local onboarding](local-onboarding.md#optional-full-docker-app--postgres-in-containers)). Reads `GITHUB_TOKEN` / `GITHUB_SYNC_OWNER` / `DASHBOARD_REPO_ROOT` from the container env, paginates the org repos endpoint, filters via `config/team-mapping.json` include/exclude rules, and clones matching non-archived repos into `/repos` (bind-mounted to your host). Idempotent — re-running skips existing clones and reports skipped categories. |
 
-Requirements: **Docker** with **Compose v2** for the stack scripts. On failure, the scripts print a short error to stderr and exit non-zero.
+Requirements: **Docker** with **Compose v2** for the stack scripts. Some explicit checks print short errors; delegated commands such as `npm install`, `docker compose`, and Drizzle may print their native errors.
 
 ## npm scripts (stack and database)
 
@@ -26,9 +26,11 @@ Requirements: **Docker** with **Compose v2** for the stack scripts. On failure, 
 | ------ | ------------ |
 | `npm run stack:up` | Runs `./scripts/dev-up.sh`. |
 | `npm run stack:down` | Runs `./scripts/dev-down.sh`. |
-| `npm run db:up` | Starts only the Compose Postgres service (`docker compose up -d --wait`). Does not install deps or migrate. |
+| `npm run db:up` | Runs `docker compose up -d --wait`. With only the base compose file this starts Postgres; with a local override it may also start the app service. Does not install deps or migrate. |
 | `npm run db:down` | Stops the Compose stack (`docker compose down`). |
-| `npm run db:migrate` | Applies SQL migrations from `drizzle/` using Drizzle Kit. Requires a valid **`DATABASE_URL`** in the environment (typically loaded from `.env`). |
+| `npm run db:ensure` | Creates the configured database if it is missing. Requires **`DATABASE_URL`** in the process environment. |
+| `npm run db:generate` | Generates Drizzle migrations from schema changes. |
+| `npm run db:migrate` | Applies SQL migrations from `drizzle/` using Drizzle Kit. Requires a valid **`DATABASE_URL`** in the process environment; direct `npm run db:migrate` does not load `.env` by itself. |
 
 ## npm scripts (data sync)
 
@@ -38,7 +40,10 @@ Runs `tsx scripts/refresh.ts`, which calls **`refreshLocalData`** in application
 
 - **Discovers** git repositories: immediate child directories of **`DASHBOARD_REPO_ROOT`** that contain `.git`.
 - **Upserts** repository rows and applies **`GITHUB_SYNC_OWNER`**, **`config/team-mapping.json`** include/exclude rules, and team assignment.
-- **Syncs** pull requests from the GitHub API only for repositories in **`ready`** status that match the configured org and mapping.
+- **Syncs** pull request metadata from the GitHub API only for repositories in **`ready`** status that match the configured org and mapping.
+- **Syncs** review metadata for PR-sync-successful repos.
+- **Syncs** PR size metadata from local git history and GitHub PR-detail fallback.
+- Records sync runs, sync errors, missing Jira-key counts, remote identity warnings, and partial/failed status.
 
 Use this for day-to-day syncing from your **local clone layout**.
 
@@ -61,7 +66,6 @@ npm run db:import-github -- --help
 | Variable | Role |
 | -------- | ---- |
 | `DATABASE_URL` | Required. Must be a **`postgresql://`** or **`postgres://`** URI (see local onboarding). |
-| `TEST_DATABASE_URL` | Optional for fixture-backed Playwright E2E; defaults to the local `dddd_test` database so tests do not overwrite `dddd_dev`. |
 | `GITHUB_TOKEN` | Optional for public repositories; recommended for rate limits and private repos. |
 | `GITHUB_API_BASE_URL` | Optional; default `https://api.github.com`. |
 | `DASHBOARD_INITIAL_SYNC_FROM` | Optional; lower bound for the **first** full PR fetch for a repository row that has never synced PRs. |

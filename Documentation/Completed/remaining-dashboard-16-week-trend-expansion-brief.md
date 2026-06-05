@@ -2,6 +2,8 @@
 
 Status: Complete
 
+> Current verification note: this brief requested retained Playwright screenshots. The completed implementation is verified by the responsive Playwright suite and rendered-browser sign-off recorded in the FIX-004 plan.
+
 ## Problem
 
 The remaining dashboard trends do not expose enough history consistently. First Review Time still shows only the current dashboard range, while PR Size shows only 8 completed UTC ISO weeks plus its optional detached current-week-so-far point.
@@ -143,7 +145,7 @@ Use separate deterministic fixtures for First Review comparison, PR Size complet
 - Assert previous/current period labels do not overlap.
 - Assert the detached marker and value label remain inside SVG bounds.
 - Assert the confidence note does not overlap the chart or team table.
-- Capture retained Playwright screenshot artifacts under `test-results/` and record a reviewed checklist or sign-off for all eight fixture/viewport combinations.
+- Verify all eight fixture/viewport combinations through responsive Playwright assertions and rendered-browser sign-off.
 
 ## Acceptance Criteria
 
@@ -159,7 +161,7 @@ Use separate deterministic fixtures for First Review comparison, PR Size complet
 - [x] PR Size returns exactly 16 completed UTC ISO weeks regardless of dashboard `range.weeks`, with no new config or environment override, plus at most one detached current partial point.
 - [x] PR Size line mode renders the 16 completed weeks with the shared comparison presentation, title `16-week PR Size comparison trend`, compact previous/latest period labels, completed x-axis labels at indexes `0`, `floor((count - 1) / 2)`, and `count - 1`, and the detached label when present; it preserves 8-or-fewer plain-line fallback and duration-comparison behavior, and retains every point in the screen-reader list.
 - [x] PR Size detached confidence, low-sample, future-row exclusion, and overflow-value behavior remain intact.
-- [x] Responsive Playwright uses separate deterministic First Review comparison, PR Size completed-only, PR Size normal detached partial, and PR Size detached overflow fixtures at `1280x900` and `390x844`; assertions cover bounds and overlap contracts, retained screenshots are captured, and the fixture/viewport combinations receive rendered-browser sign-off.
+- [x] Responsive Playwright uses separate deterministic First Review comparison, PR Size completed-only, PR Size normal detached partial, and PR Size detached overflow fixtures at `1280x900` and `390x844`; assertions cover bounds and overlap contracts, and the fixture/viewport combinations receive rendered-browser sign-off.
 - [x] Automated accessibility assertions cover First Review comparison-list length and order, previous/current semantics, dynamic title and aria labels, PR Size 16-or-17-item list behavior, and detached `current week so far` copy.
 - [x] Dashboard order remains PR Cycle Time, First Review Time, PR Size.
 - [x] No card or table calculation semantics change.

@@ -1,7 +1,9 @@
 # Phase 02: First Review Time
 
-Status: Draft (spec locked for implementation)
+Status: Implemented (historical Phase 02 spec)
 Last updated: 2026-05-15
+
+> Historical note: this page is the locked Phase 02 spec. The FEAT-002 implementation plan superseded the storage details with normalized `pull_request_reviews` / `pull_request_review_comments` tables, kept freshness inline in the dashboard footer, and FIX-004 later changed the visible First Review chart to the shared comparison presentation.
 
 Implementation plan: [FEAT-002 — First Review Time](FEAT-002-first-review-time-implementation-plan.md) (follows the structure of [FEAT-001 — PR Cycle Time MVP](FEAT-001-pr-cycle-time-mvp-implementation-plan.md)).
 
@@ -58,11 +60,11 @@ Surface as a **review-latency exception** and as a team-level **No-review Merges
 
 - Add a **First Review Time** section below the Phase 01 dashboard content so users scroll down from the PR Cycle Time view into the review-latency view.
 - Add a **Median First Review Time** metric card at the top of that section.
-- Subtitle: `PR opened to first submitted review`.
+- Subtitle in the original spec: `PR opened to first submitted review`. Shipped FEAT-002 copy uses `PR opened to first human review`.
 - Show `No merged PRs with a review in range` when every merged PR in range lacks a qualifying review (not `0 minutes`).
 - Show `Baseline pending` when previous-period comparison is unavailable (same rules as Phase 01).
 - Add a separate **Review-latency exceptions** panel so Phase 01's PR Cycle Time exception slots remain unchanged.
-- Add a separate **Review team breakdown** table with **Reviewed PRs**, **First Review**, **Review Trend**, and **No-review Merges** columns.
+- Add a separate **Review team breakdown** table. The original spec listed **Reviewed PRs**, **First Review**, **Review Trend**, and **No-review Merges** columns; FEAT-002 shipped the brief-authoritative table without `Reviewed PRs`.
   - **First Review** shows median hours; `—` when the team has no qualifying PRs.
   - **Review Trend** shows First Review trend versus the previous 8 weeks; `—` when comparison is unavailable.
   - **No-review Merges** shows the team-level merge-without-review hygiene count; `—` when none match.
@@ -100,6 +102,8 @@ Two endpoints per merged PR (budget accordingly):
 - **Rate limits:** if GitHub returns rate-limit errors, stop starting new review fetches, record the error, and leave `lastReviewSyncedAt` unchanged for affected repos.
 
 ### Storage (PostgreSQL / Drizzle migration)
+
+> Historical storage note: FEAT-002 did not keep these denormalized fields as the current source of truth. The shipped implementation uses normalized review storage and derives the dashboard metrics from that data.
 
 New columns on `pull_requests` (preferred over a separate events table for Phase 02):
 

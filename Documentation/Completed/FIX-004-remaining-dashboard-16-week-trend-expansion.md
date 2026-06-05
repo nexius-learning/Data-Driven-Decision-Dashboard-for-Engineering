@@ -24,7 +24,7 @@ First Review shows the previous dashboard range followed by the current dashboar
 - Make PR Size request exactly 16 completed UTC ISO weeks independent of dashboard `range.weeks`.
 - Add sparse visible completed x-axis labels for PR Size line mode when completed history exceeds 8 points.
 - Preserve PR Size detached current-week-so-far confidence, low-sample, future-row exclusion, and overflow-value behavior.
-- Add deterministic responsive Playwright fixtures, assertions, retained screenshots, and reviewed sign-off.
+- Add deterministic responsive Playwright fixtures, assertions, and reviewed rendered-browser sign-off. Current verification is covered by the responsive Playwright suite and browser sign-off note below.
 - Correct the stale completed Phase 02 documentation only after roadmap scheduling authorizes implementation.
 
 ### Out of Scope
@@ -52,7 +52,7 @@ First Review shows the previous dashboard range followed by the current dashboar
 - [x] PR Size line mode with more than 8 completed points renders completed x-axis labels only at indexes `0`, `floor((count - 1) / 2)`, and `count - 1`, and always renders the detached label when present.
 - [x] PR Size line mode uses the shared comparison presentation for its 16 completed weeks, with title `16-week PR Size comparison trend`, compact previous/latest period labels, divider, muted dashed previous segment, and dark latest segment.
 - [x] PR Size preserves 8-or-fewer plain-line labels, duration-comparison labels, accessible list completeness, confidence wording, low-sample wording, future-row exclusion, overflow marker, and actual detached numeric value.
-- [x] Responsive Playwright covers First Review comparison, PR Size completed-only, PR Size normal detached partial, and PR Size detached overflow at `1280x900` and `390x844`, with bounds, overlap, retained screenshots, and rendered-browser sign-off.
+- [x] Responsive Playwright covers First Review comparison, PR Size completed-only, PR Size normal detached partial, and PR Size detached overflow at `1280x900` and `390x844`, with bounds, overlap, and rendered-browser sign-off.
 - [x] Dashboard order remains PR Cycle Time, First Review Time, PR Size.
 - [x] No card, exception, or team-table semantics change.
 
@@ -149,7 +149,7 @@ First Review shows the previous dashboard range followed by the current dashboar
   - Add deterministic scenario fixtures for First Review comparison, PR Size completed-only, PR Size detached partial, and PR Size detached overflow.
 - `tests/e2e/remaining-dashboard-trend-expansion.spec.ts`
   - Run all four fixture scenarios at desktop and mobile viewports.
-  - Retain screenshots under `test-results/`.
+  - Capture responsive verification evidence through the Playwright run.
 - `Documentation/Completed/phase-02-first-review-time.md`
   - Correct stale metric-definition prose so it matches shipped first-qualifying-human-review behavior after implementation is scheduled.
 - `package.json`
@@ -170,8 +170,8 @@ No new config keys or environment variables are introduced.
 - **dashboard_pr_size_trend_uses_fixed_16_completed_weeks** (integration): dashboard `weeks = 8` and `weeks = 4` both produce 16 completed PR Size points plus optional detached partial.
 - **weekly_chart_plain_line_axis_labels_are_sparse_over_eight_points** (component): completed labels use first, midpoint, last indexes only.
 - **weekly_chart_plain_line_labels_preserve_short_history_and_detached_label** (component): short histories and detached label behavior remain unchanged.
-- **remaining_dashboard_trends_responsive_layout** (e2e): all four deterministic fixtures pass desktop/mobile bounds and overlap assertions with retained screenshots.
-- **phase_regression_gates** (integration/e2e): Phase 01, Phase 02, and Phase 03 verification paths remain green where shared rendering changes apply.
+- **remaining_dashboard_trends_responsive_layout** (e2e): all four deterministic fixtures pass desktop/mobile bounds and overlap assertions.
+- **verify:fix004** (integration/e2e): Phase 01, Phase 02, Phase 03, and FIX-004 verification paths remain green where shared rendering changes apply.
 
 ---
 
@@ -351,7 +351,7 @@ No new config keys or environment variables are introduced.
   - Checkpoint: `npm run test -- tests/components/weekly-trend-chart.test.tsx tests/components/PrSizeTrendChart.test.tsx`
 
 ### Phase 4 — Responsive Browser Verification
-> **Releasable**: when Task 4.2 is complete, all four deterministic scenarios are browser-verified at desktop and mobile sizes with retained screenshot evidence.
+> **Releasable**: when Task 4.2 is complete, all four deterministic scenarios are browser-verified at desktop and mobile sizes.
 
 #### Task 4.1 — Deterministic FIX-004 Playwright fixtures
 - [x] **File**: `tests/e2e/fixtures/remaining-dashboard-trend-expansion.fixture.ts`
@@ -374,8 +374,8 @@ No new config keys or environment variables are introduced.
   - Integration: `fixture_pr_size_detached_overflow_exceeds_completed_axis_domain`.
   - Checkpoint: `npm run test -- tests/e2e/fixtures/remaining-dashboard-trend-expansion.fixture.test.ts`
 
-#### Task 4.2 — Responsive Playwright assertions and retained screenshots
-- [x] **File**: `tests/e2e/remaining-dashboard-trend-expansion.spec.ts`, `test-results/` screenshot artifacts
+#### Task 4.2 — Responsive Playwright assertions
+- [x] **File**: `tests/e2e/remaining-dashboard-trend-expansion.spec.ts`
 - **Depends on**: Task 4.1
 - **Description**:
   - Run each fixture at:
@@ -386,7 +386,7 @@ No new config keys or environment variables are introduced.
   - Assert First Review previous/current period labels do not overlap.
   - Assert PR Size detached marker and value label remain inside SVG bounds.
   - Assert PR Size confidence note does not overlap the chart or team table.
-  - Capture retained screenshots under `test-results/` for all eight fixture/viewport combinations.
+  - Run all eight fixture/viewport combinations through Playwright responsive assertions.
   - Add the reviewed screenshot checklist to Task 5.2 before marking this plan complete.
 - **Releasable**: after this task, FIX-004 visual behavior is verified in a real browser.
 - **Tests (TDD)** — `tests/e2e/remaining-dashboard-trend-expansion.spec.ts`:
@@ -415,7 +415,7 @@ No new config keys or environment variables are introduced.
 - [x] **File**: `Documentation/Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md`, `Documentation/Completed/remaining-dashboard-16-week-trend-expansion-brief.md`
 - **Depends on**: Task 5.1
 - **Description**:
-  - Review and record rendered-browser sign-off for the same deterministic fixtures used to retain screenshots under `test-results/`:
+  - Review and record rendered-browser sign-off for the same deterministic fixtures used by the responsive Playwright suite:
     - First Review comparison desktop and mobile.
     - PR Size completed-only desktop and mobile.
     - PR Size normal detached partial desktop and mobile.
@@ -425,12 +425,12 @@ No new config keys or environment variables are introduced.
   - Confirm Phase 04 roadmap wording remains intentional after completion.
 - **Releasable**: after this task, FIX-004 is complete and ready to commit.
 - **Tests (TDD)** — manual sign-off:
-  - Checkpoint: `git diff --check && find test-results -type f | sort`
+  - Checkpoint: `git diff --check && npm run verify:fix004`
 
 ---
 
 ## Browser screenshot sign-off
-- Browser policy prevented direct `file://` inspection of retained screenshot artifacts. The same deterministic fixtures were reviewed on the live local dashboard, with the retained Playwright screenshots generated by the passing responsive suite.
+- Browser policy prevented direct `file://` inspection of screenshot artifacts. The same deterministic fixtures were reviewed on the live local dashboard, with the responsive Playwright suite covering bounds and overlap assertions.
 - [x] First Review comparison — `1280x900`
 - [x] First Review comparison — `390x844`
 - [x] PR Size completed-only — `1280x900`

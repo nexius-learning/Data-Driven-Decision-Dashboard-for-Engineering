@@ -3,6 +3,8 @@
 **Audience**: Engineering leaders using the local dashboard, plus implementers maintaining PR Cycle Time metrics and shared dashboard chart components.
 **Status**: Complete
 
+> Current follow-up note: this fix intentionally changed only PR Cycle Time first. FIX-004 later applied the comparison-trend pattern to First Review and expanded PR Size completed history, so lines below that say First Review or PR Size remain unchanged are historical FIX-003 scope boundaries.
+
 ---
 
 ## Background
@@ -40,6 +42,8 @@ When this fix is complete, the PR Cycle Time trend chart shows the previous 8 da
 ---
 
 ## Acceptance criteria
+
+The checklist below is the original FIX-003 acceptance contract. The fix is complete; unchecked boxes are historical task text, not current open backlog.
 - [ ] PR Cycle Time payload exposes a 16-point comparison trend with `period`, `bucketIndex`, `bucketStart`, `bucketEnd`, `bucketLabel`, and `medianHours`.
 - [ ] Each comparison trend point exposes `bucketLabel` as a local `YYYY-MM-DD` date label for visible and accessible chart labels.
 - [ ] Points 1-8 represent the previous comparison period, and points 9-16 represent the current comparison period.

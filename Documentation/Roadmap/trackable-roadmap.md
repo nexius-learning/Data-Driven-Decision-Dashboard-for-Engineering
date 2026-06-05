@@ -1,7 +1,7 @@
 # Trackable Roadmap Checklist
 
 Status: Active
-Last updated: 2026-06-02
+Last updated: 2026-06-04
 
 ## How To Use This File
 
@@ -12,7 +12,7 @@ This is the execution checklist for humans and LLM agents.
 - Mark an item as complete only when the related behavior is implemented and verified.
 - Use the linked phase file as the detailed source of truth for each phase.
 - Do not add UI for a metric until its data is collected, stored, and computed.
-- Keep the app as a one-page scrolling dashboard. Add each new metric as the next vertical section after the last implemented metric section.
+- Keep the metric surface as a one-page scrolling dashboard. Add each new metric as the next vertical section after the last implemented metric section. Source/provenance drill-down routes may exist for local data explanation.
 - When implementing from a new mockup, preserve existing sections above it and append the new metric section below; do not create a new page, tab, or first-viewport card cluster unless the roadmap explicitly changes.
 
 ## Current Next Step
@@ -112,7 +112,7 @@ Goal: detect oversized PR patterns.
 - [x] Add separate Size team breakdown.
 - [x] Add PR Size weekly trend.
 - [x] Distinguish completed-week trend from current-week-so-far with confidence notes and detached current marker.
-- [x] Show size metadata freshness.
+- [x] Show size metadata through the latest PR metadata sync, sync errors, and PR Size confidence notes.
 - [x] Verify the UI does not rank or shame individual authors.
 
 ## FIX-004: Remaining Dashboard 16-Week Trend Expansion (Completed Stabilization Gate)
@@ -138,7 +138,7 @@ Goal: add Jira-backed flow metrics after GitHub PR metrics are stable.
 - [ ] Compute WIP.
 - [ ] Compute throughput.
 - [ ] Compute Jira cycle time.
-- [ ] Compute missing Jira key hygiene.
+- [ ] Reconcile existing PR-title missing Jira key hygiene with Jira-backed issue linking.
 - [ ] Add Jira-backed metric cards only after each calculation exists.
 - [ ] Add Jira data freshness and data-quality issues.
 

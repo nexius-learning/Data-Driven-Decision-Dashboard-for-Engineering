@@ -1,7 +1,7 @@
 # Phase 04: Jira Flow Metrics
 
 Status: Draft
-Last updated: 2026-05-09
+Last updated: 2026-06-04
 
 ## Goal
 
@@ -12,7 +12,9 @@ Add Jira-backed flow metrics after GitHub PR metrics are stable.
 - WIP.
 - Throughput.
 - Jira cycle time.
-- Missing Jira key hygiene.
+- Jira-backed issue-link hygiene.
+
+The dashboard already has a GitHub PR-title missing Jira key signal. Phase 04 must decide whether Jira-backed issue linking replaces, augments, or reconciles that existing freshness item.
 
 ## UI Changes
 
@@ -34,5 +36,4 @@ Required data:
 
 - Jira metrics do not appear until sync and computation are implemented.
 - WIP reflects active Jira work, not GitHub PR count.
-- Missing Jira key count is shown as a data-quality issue.
-
+- Jira-backed issue-link hygiene is shown as a data-quality issue, clearly distinguished from the existing PR-title missing-key signal.

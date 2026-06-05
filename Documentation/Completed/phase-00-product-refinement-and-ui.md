@@ -1,7 +1,9 @@
 # Phase 00: Product Refinement And UI
 
-Status: Draft
+Status: Implemented (historical Phase 00)
 Last updated: 2026-05-16
+
+> Historical note: this document locked the original product direction before implementation. The current dashboard UI reference is the Phase 03 mockup below, with FIX-003/FIX-004 trend refinements layered on top.
 
 ## Goal
 
@@ -21,7 +23,7 @@ Lock the product direction, save the design history, and make the first release 
 
 ## Mockups
 
-### Current MVP
+### Phase 01 MVP Reference
 
 ![PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 

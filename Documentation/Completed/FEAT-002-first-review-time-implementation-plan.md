@@ -1,7 +1,9 @@
 # FEAT-002 — First Review Time
 **Purpose**: Add Phase 02 review-latency visibility (Median First Review Time, merge-without-review hygiene) without changing the Phase 01 PR Cycle Time surface.
 **Audience**: Head of Engineering, FEAT-002 implementation agent, engineers maintaining the dashboard.
-**Status**: To Do
+**Status**: Done (historical Phase 02 plan)
+
+> Historical note: this plan records the FEAT-002 implementation path. The shipped code stores raw reviews in normalized review tables, keeps Phase 02 freshness inline in the dashboard footer, and later FIX-004 changed First Review from an 8-week single-series chart to the shared comparison presentation.
 
 ---
 
@@ -60,6 +62,8 @@ When this plan is complete, the user can run the app locally, click Refresh, and
 
 ## Acceptance criteria
 
+The checklist below is the original FEAT-002 implementation contract. This plan is complete; unchecked boxes are historical task text, not current open backlog.
+
 - [ ] Drizzle migration creates `pull_request_reviews` and `repositories.lastReviewSyncedAt`; applies cleanly to a fresh DB and to a Phase 01 DB.
 - [ ] GitHub client fetches reviews and review comments with pagination; surfaces rate-limit errors as structured sync errors.
 - [ ] Bot identity helper classifies `user.type === "Bot"`, `[bot]` suffix logins, null `user` objects, and null `user.type` consistently per brief.
@@ -67,7 +71,7 @@ When this plan is complete, the user can run the app locally, click Refresh, and
 - [ ] Median First Review Time is computed over qualifying PRs (≥1 qualifying human review).
 - [ ] Coverage values M and N are computed per brief definitions and surfaced in the card subtitle (suppressed when N=0; M=0 N>0 shows "0 of N").
 - [ ] Bot-share side stat (B, X%, K) is computed per brief definitions and omitted entirely when B=0.
-- [ ] 8-week First Review weekly trend renders once Phase 02 is visible, with null buckets for empty weeks.
+- [x] Original FEAT-002 8-week First Review weekly trend shipped; FIX-004 later expanded the visible chart to the shared comparison presentation.
 - [ ] Trend percent is gated on ≥3 qualifying PRs in previous period AND previous median > 0.
 - [ ] Merge-without-review hygiene rule fires per locked thresholds (no qualifying review of any kind, zero pre-merge review comments, merged in <7 minutes).
 - [ ] Phase 02 exceptions panel emits `review_latency_worsened`, `merge_without_review`, `review_baseline_pending` per brief gating, sorted by severity → trend magnitude → team name, capped at 3 total, hidden when zero exceptions qualify.
@@ -80,7 +84,7 @@ When this plan is complete, the user can run the app locally, click Refresh, and
 - [ ] Phase 01 PR Cycle Time card, exceptions, trend, team table behavior remain unchanged.
 - [ ] `npm run verify:phase01` continues to pass.
 - [ ] `npm run verify:phase02` passes.
-- [ ] Trackable roadmap and phase doc are updated.
+- [x] Trackable roadmap and phase doc are updated.
 
 ### Acceptance-to-test traceability
 
@@ -357,7 +361,7 @@ export const pullRequestReviewComments = pgTable('pull_request_review_comments',
 
 ## Documentation update
 
-- [ ] Phase 02 acceptance checklist, section: `Acceptance criteria checklist`, path: `Documentation/Roadmap/phases/phase-02-first-review-time.md`
+- [ ] Phase 02 acceptance checklist, section: `Acceptance criteria checklist`, path: `Documentation/Completed/phase-02-first-review-time.md`
 - [ ] Trackable roadmap link, section: `Phase 02: First Review Time`, path: `Documentation/Roadmap/trackable-roadmap.md`
 - [ ] README status, section: `Next Step`, path: `Documentation/README.md`
 - [ ] FEAT-002 link added to the Phase 02 phase doc's `Implementation plan` line.
@@ -396,7 +400,7 @@ export const pullRequestReviewComments = pgTable('pull_request_review_comments',
 > **Releasable**: after this phase, FEAT-002 exists as a tracked plan with documentation links.
 
 #### Task 1.1 — Add FEAT-002 docs links
-- [x] **File**: `Documentation/Roadmap/phases/phase-02-first-review-time.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/README.md`
+- [x] **File**: `Documentation/Completed/phase-02-first-review-time.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/README.md`
 - **Depends on**: nothing
 - **Description**:
   - Phase 02 phase doc: replace the "Implementation plan: FEAT-002 (to be authored before coding starts)" line with a direct link to `FEAT-002-first-review-time-implementation-plan.md`.
@@ -964,7 +968,7 @@ export const pullRequestReviewComments = pgTable('pull_request_review_comments',
   - Checkpoint: `npm run test -- tests/scripts/verify-phase-02.test.ts && npm run verify:phase02 && npm run verify:phase01`
 
 #### Task 9.2 — Acceptance checklist + roadmap finalization
-- [x] **File**: `Documentation/Roadmap/phases/phase-02-first-review-time.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/README.md`
+- [x] **File**: `Documentation/Completed/phase-02-first-review-time.md`, `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/README.md`
 - **Depends on**: Task 9.1
 - **Description**:
   - Tick Phase 02 acceptance checklist boxes in the phase doc to match what FEAT-002 delivered.

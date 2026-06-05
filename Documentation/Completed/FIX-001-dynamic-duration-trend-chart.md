@@ -6,10 +6,10 @@
 ---
 
 ## Background
-The PR Cycle Time and First Review trend charts receive weekly median values in hours, but the shared chart currently plots duration values as days and formats labels with one decimal place. Local datasets with sub-day medians can therefore display real non-zero values as `0.0`, which hides signal during early setup and small-team usage. The feature brief is `Documentation/Completed/dynamic-duration-trend-chart-brief.md`.
+Before this fix, the PR Cycle Time and First Review trend charts received weekly median values in hours, but the shared chart plotted duration values as days and formatted labels with one decimal place. Local datasets with sub-day medians could therefore display real non-zero values as `0.0`, hiding signal during early setup and small-team usage. The feature brief is `Documentation/Completed/dynamic-duration-trend-chart-brief.md`.
 
 ## Goal
-When this fix is complete, PR Cycle Time and First Review trend charts automatically choose minutes, hours, or days from the current non-null weekly values, keep one coherent unit per chart, preserve null-week gaps, and never label real non-zero duration points as `0.0`. PR Size trend charts continue to use line-based scaling and sparse tick behavior.
+When this fix is complete, PR Cycle Time and First Review trend charts automatically choose minutes, hours, or days from the available non-null weekly values, keep one coherent unit per chart, preserve null-week gaps, and never label real non-zero duration points as `0.0`. PR Size trend charts continue to use line-based scaling and sparse tick behavior.
 
 ---
 

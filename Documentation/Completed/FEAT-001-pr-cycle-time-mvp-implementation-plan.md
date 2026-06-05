@@ -1,7 +1,9 @@
 # FEAT-001 — PR Cycle Time MVP
 **Purpose**: Build the first local-first dashboard release with one trusted metric: PR Cycle Time.
 **Audience**: Head of Engineering, future implementation agents, and engineers maintaining the dashboard.
-**Status**: To Do
+**Status**: Done (historical Phase 01 plan)
+
+> Historical note: this is the original Phase 01 implementation plan. Later phases added First Review Time and PR Size, and FIX-003/FIX-004 changed the trend presentation. Keep 8-week and single-metric wording below as Phase 01 baseline unless a line is explicitly marked current.
 
 ---
 
@@ -11,9 +13,9 @@ The Data Driven Decision Dashboard is a local-first engineering metrics product.
 
 The dashboard must use cloned repositories under `/Users/manczg/Documents/work/development`, but local Git history alone does not reliably contain PR opened and merged lifecycle metadata. V1 therefore uses local repo discovery plus minimal GitHub metadata sync for PR lifecycle fields.
 
-Current phase brief: [phase-01-pr-cycle-time-mvp.md](phase-01-pr-cycle-time-mvp.md)
+Phase 01 phase brief: [phase-01-pr-cycle-time-mvp.md](phase-01-pr-cycle-time-mvp.md)
 
-Current UI reference: [PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
+Phase 01 UI reference: [PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 
 ---
 
@@ -49,6 +51,8 @@ When this plan is complete, the user can run the app locally, refresh PR metadat
 ---
 
 ## Acceptance criteria
+
+The checklist below is the original Phase 01 implementation contract. This plan is complete; unchecked boxes are historical task text, not current open backlog.
 
 - [ ] The app can be started locally.
 - [ ] The database schema can be created from migrations.
@@ -434,7 +438,7 @@ The task breakdown below is the authoritative test list. This section highlights
 
 ## Documentation update
 
-- [ ] Phase 01 plan link, section: `Implementation Plan`, path: `Documentation/Roadmap/phases/phase-01-pr-cycle-time-mvp.md`
+- [ ] Phase 01 plan link, section: `Implementation Plan`, path: `Documentation/Completed/phase-01-pr-cycle-time-mvp.md`
 - [ ] Trackable roadmap link, section: `Phase 01: PR Cycle Time MVP`, path: `Documentation/Roadmap/trackable-roadmap.md`
 - [ ] README status, section: `Next Step`, path: `Documentation/README.md`
 
@@ -954,7 +958,7 @@ The task breakdown below is the authoritative test list. This section highlights
   - Checkpoint: `npm run test:e2e`
 
 #### Task 7.3 — Documentation status update
-- [x] **File**: `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Roadmap/phases/phase-01-pr-cycle-time-mvp.md`, `Documentation/README.md`
+- [x] **File**: `Documentation/Roadmap/trackable-roadmap.md`, `Documentation/Completed/phase-01-pr-cycle-time-mvp.md`, `Documentation/README.md`
 - **Depends on**: Task 7.2
 - **Description**:
   - Preserve existing links from Phase 01, trackable roadmap, and README to this implementation plan.

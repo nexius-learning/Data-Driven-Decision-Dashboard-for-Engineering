@@ -1,7 +1,9 @@
 # FEAT-003 — PR Size
 **Purpose**: Add Phase 03 PR Size visibility (Median PR Size, oversized-PR exceptions, 8-week trend, team breakdown) without changing Phase 01 or Phase 02 surfaces.
 **Audience**: Head of Engineering, FEAT-003 implementation agent, engineers maintaining the dashboard.
-**Status**: Done (updated with FIX-002 PR Size trend confidence behavior)
+**Status**: Done (updated with FIX-002 and FIX-004 trend behavior)
+
+> Historical note: this plan records the Phase 03 baseline. FIX-002 added detached current-week confidence behavior for PR Size, and FIX-004 later expanded PR Size to the shared 16 completed-week comparison presentation. Any remaining 8-week wording below is original Phase 03 baseline unless explicitly marked current.
 
 ---
 
@@ -624,7 +626,7 @@ export type PrSizeRecord = {
 - **Depends on**: Task 8.1
 - **Description**:
   - Props: `{ rows: PrSizeTeamRow[] }`.
-  - Columns: Team, PRs merged, Median size (lines), Trend, Largest PR (title + repo as link to `largestPrUrl`).
+  - Original columns: Team, PRs merged, Median size (lines), Trend, Largest PR (title + repo as link to `largestPrUrl`). Current UI omits the Largest PR column.
   - Trend cell: `↑`, `↓`, `→`, `—`. No author names anywhere.
 - **Releasable**: after this task the team table renders.
 - **Tests (TDD)** — `tests/components/PrSizeTeamTable.test.tsx`:
@@ -705,7 +707,7 @@ export type PrSizeRecord = {
   - **Metric card**: Shows median `additions + deletions` for non-null PRs in the 8-week window. Shows `"baseline pending"` when < 3 weeks of size data (raw median still shown). Shows period-over-period trend vs. prior 8 weeks.
   - **Exceptions panel**: Teams with ≥ 3 PRs where ≥ 50% exceed 2× team median. Sorted by ratio descending. Max 3. Hidden when empty.
   - **Trend chart**: Median PR size per week for 8 weeks. Null weeks are gaps, not zeros. Renders regardless of `baselineStatus`.
-  - **Team breakdown**: All teams with ≥ 1 sized PR. Columns: Team, PRs merged, Median size, Trend (↑/↓/→/—), Largest PR (title + repo link). Sorted by median descending. No author names.
+  - **Team breakdown**: All teams with ≥ 1 sized PR. Current UI columns are Team, PRs merged, Median size, and Trend (↑/↓/→/—). Sorted by median descending. No author names.
   - **No data state**: Entire PR Size section hidden when zero PRs have non-null `additions`/`deletions`.
   - **Size computation**: Merge/squash via `git diff <sha>^1 <sha> --shortstat`; rebase via GitHub PR detail API. Strategy detection per brief. `changedFiles` from `--shortstat` file count (git path) or `changed_files` (API path).
   - **Null handling**: PRs where size cannot be computed are excluded from all medians. Not shown as zero.

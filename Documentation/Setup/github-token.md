@@ -1,11 +1,11 @@
 # GitHub Token Setup
 
-Status: Draft
-Last updated: 2026-05-13
+Status: Current
+Last updated: 2026-06-04
 
 ## Purpose
 
-The PR Cycle Time MVP uses the GitHub REST API to fetch pull request lifecycle metadata. Private repositories require a token.
+The dashboard collector uses GitHub access to fetch pull request metadata, review metadata, review comments, PR-detail fallback data for PR size, and private-clone git history for size sync. Private repositories require a token.
 
 ## Recommended Token Type
 
@@ -33,24 +33,25 @@ Recommended fine-grained token setup:
 
 For the local dashboard's default `gde-mit` setup, **Resource owner must be
 `gde-mit`**, and the **Selected repositories** list must include every repository
-matched by `config/team-mapping.json` / `DASHBOARD_REPO_ROOT`. The permission
-names above are sufficient for the app's REST calls and for `git fetch` against
-the local clones (used by PR-size sync):
+matched by `GITHUB_SYNC_OWNER`, `config/team-mapping.json`, and
+`DASHBOARD_REPO_ROOT`. The permission names above are sufficient for the app's
+REST calls and for `git fetch` against the local clones (used by PR-size sync):
 
-- `GET /repos/{owner}/{repo}` accepts `metadata=read`.
 - `GET /repos/{owner}/{repo}/pulls` accepts `pull_requests=read`.
+- `GET /repos/{owner}/{repo}/pulls/{pull_number}` accepts `pull_requests=read`.
 - `GET /repos/{owner}/{repo}/pulls/{pull_number}/reviews` accepts `pull_requests=read`.
 - `GET /repos/{owner}/{repo}/pulls/{pull_number}/comments` accepts `pull_requests=read`.
+- The full-Docker clone helper also calls the org repos endpoint for `GITHUB_SYNC_OWNER`.
 - `git clone` / `git fetch` over HTTPS accepts `contents=read`.
 
 If only the API permissions are granted, REST sync will succeed but the
-PR-size step of `collector:refresh` will fail with `403` when it runs
-`git fetch` against private clones.
+PR-size git-history step can log fetch-related sync errors and leave size data
+incomplete when it runs `git fetch` against private clones.
 
 If GitHub returns `404 Not Found` for private repositories even though the token
 owner is correct, the token is not allowed to see those repositories. Check that:
 
-- The token was created with resource owner `gde-mit`, not the user's own account.
+- The token was created with resource owner `gde-mit`, or the value configured in `GITHUB_SYNC_OWNER`, not the user's own account.
 - The selected repository list includes the target repositories, or repository
   access is set to all repositories for `gde-mit`.
 - Any organization-required fine-grained PAT approval has completed.
@@ -69,9 +70,9 @@ Do not commit `.env`. It is gitignored.
 
 ## Verify Access
 
-After implementation, use the app refresh flow or collector command to verify
-access. If GitHub returns an auth or rate-limit error, the dashboard should
-surface a sync error instead of failing silently.
+Use the app refresh flow, `npm run collector:refresh`, `npm run db:import-github`,
+or the live E2E guards to verify access. If GitHub returns an auth or rate-limit
+error, the dashboard should surface a sync error instead of failing silently.
 
 Quick local verification, without printing the token:
 
@@ -99,10 +100,12 @@ const headers = {
   Authorization: `Bearer ${readToken()}`,
 }
 
+const owner = 'gde-mit'
+const repo = 'replace-with-selected-repo'
+
 for (const url of [
   'https://api.github.com/user',
-  'https://api.github.com/repos/gde-mit/sd-dpa',
-  'https://api.github.com/repos/gde-mit/sd-dpa/pulls?state=all&per_page=1',
+  `https://api.github.com/repos/${owner}/${repo}/pulls?state=all&per_page=1`,
 ]) {
   const response = await fetch(url, { headers })
   const body = await response.json().catch(() => ({}))
@@ -120,9 +123,13 @@ NODE
 Expected result:
 
 - `/user` returns the intended GitHub login.
-- Repository and pull-request calls return `200`.
+- Pull-request calls for a selected repository return `200`.
 - `404 Not Found` means the token cannot see that repository, even if the
   permission names are correct.
+
+For full-Docker org clone checks, also verify that the token can list repositories
+for `GITHUB_SYNC_OWNER`; the clone helper uses that list before cloning matching
+repositories into the bind-mounted repo root.
 
 ## Rotation
 

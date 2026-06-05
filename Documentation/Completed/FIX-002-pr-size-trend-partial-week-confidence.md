@@ -1,7 +1,9 @@
 # FIX-002 — PR Size Trend Partial-Week Confidence
 **Purpose**: Make the PR Size weekly trend honest about partial-week and low-sample data without changing PR Size median semantics.
 **Audience**: Engineering leaders using the local dashboard, plus implementers maintaining PR Size metrics and shared dashboard chart components.
-**Status**: Draft
+**Status**: Implemented (later expanded by FIX-004)
+
+> Current follow-up note: FIX-002 shipped the detached current-week and confidence behavior for PR Size. FIX-004 later expanded the completed-week portion to the shared 16 completed-week comparison presentation, so default 8-week wording below is historical baseline language.
 
 ---
 

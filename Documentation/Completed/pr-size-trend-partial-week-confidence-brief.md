@@ -1,5 +1,9 @@
 # Feature Brief: PR Size Trend Partial-Week Confidence
 
+Status: Implemented as FIX-002; later completed-week chart history expanded by FIX-004.
+
+> Current follow-up note: this brief defines the detached current-week and confidence behavior. FIX-004 later changed the completed-week portion from 8 completed UTC ISO weeks to 16 completed UTC ISO weeks.
+
 ## Problem
 Users can misread the latest PR Size weekly trend point as a completed-week result when it may be based on only a few PRs from the current partial week.
 
@@ -11,7 +15,7 @@ Engineering leads review the one-page dashboard after a refresh and scan the PR 
 
 ## Core Flow
 1. The user opens the dashboard and scrolls to PR Size.
-2. The PR Size trend shows 8 completed UTC ISO weeks as the main trend line.
+2. The PR Size trend shows completed UTC ISO weeks as the main trend line. The original FIX-002 brief used 8 completed weeks; current shipped behavior uses 16 completed weeks via FIX-004.
 3. If the latest week is still in progress, the latest point appears as a separate current-week-so-far point instead of a normal completed-week point.
 4. If the latest point is partial or has fewer than 3 measured PRs, the chart shows a concise confidence note with the PR count.
 5. The user can still read the median value, but understands that the latest weekly value may change as more PRs merge.
@@ -23,11 +27,11 @@ Engineering leads review the one-page dashboard after a refresh and scan the PR 
   - `measuredPrCount`: count of PRs merged in that ISO week where both `additions` and `deletions` are non-null; PRs with only null size fields do not count.
   - `isPartialWeek`: `true` only for the UTC ISO week containing `now`; otherwise `false`.
 - Keep the existing weekly median calculation unchanged.
-- Define the PR Size chart window as 8 completed UTC ISO weeks plus the current partial UTC ISO week as a detached point when that current week has `measuredPrCount > 0`.
+- Define the PR Size chart window as completed UTC ISO weeks plus the current partial UTC ISO week as a detached point when that current week has `measuredPrCount > 0`. FIX-002 used 8 completed weeks; FIX-004 later expanded this to 16 completed weeks.
 - Count only PRs with `mergedAt <= now` in the current partial-week point; future-dated rows in the same UTC ISO week must not contribute to `medianLines` or `measuredPrCount`.
 - Clamp all PR Size computations to `mergedAt <= now`, including the retained selected-window Median PR Size card, Size team breakdown, oversized exceptions, and PR Size section no-data/visibility gate.
-- Update visible and accessible chart naming so the surface cannot imply that a ninth current-week-so-far point is a completed week; use wording equivalent to `8 completed weeks + current week so far`.
-- Render the 8 completed weeks as the main PR Size trend line.
+- Update visible and accessible chart naming so the surface cannot imply that a current-week-so-far point is a completed week; current shipped wording reflects the FIX-004 16 completed-week history.
+- Render the completed weeks as the main PR Size trend line.
 - Render the current partial week as a distinct current-week-so-far point, visually detached from the completed-week line.
 - Show a concise confidence note when the latest point is partial or has fewer than 3 measured PRs.
 - Include the same PR count context in accessible chart text.

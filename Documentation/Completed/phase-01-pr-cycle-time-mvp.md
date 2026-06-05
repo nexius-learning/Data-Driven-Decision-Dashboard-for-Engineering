@@ -5,6 +5,8 @@ Last updated: 2026-05-14
 
 Implementation plan: [FEAT-001 — PR Cycle Time MVP](FEAT-001-pr-cycle-time-mvp-implementation-plan.md)
 
+> Historical note: this page describes the completed Phase 01 MVP. The current dashboard also includes Phase 02 First Review Time, Phase 03 PR Size, and FIX-003/FIX-004 comparison-trend refinements.
+
 ## Goal
 
 Release the first local dashboard with one metric: PR Cycle Time.
@@ -13,7 +15,7 @@ PR Cycle Time is measured from PR opened to PR merged.
 
 ## UI
 
-Use this mockup as the current implementation reference:
+Use this mockup as the Phase 01 implementation reference:
 
 ![PR Cycle Time first increment](../Assets/mockups/03-pr-cycle-time-first-increment.png)
 

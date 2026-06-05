@@ -1,25 +1,25 @@
 # Local Onboarding
 
-Status: Draft
-Last updated: 2026-05-14
+Status: Current
+Last updated: 2026-06-04
 
 ## Purpose
 
-This guide prepares the local configuration needed to run the PR Cycle Time MVP against real repositories.
+This guide prepares the local configuration needed to run the dashboard against real repositories.
 
 ## Web application (UI)
 
 The dashboard runs as a **TanStack Start** app on **Vite** (dev server default **http://localhost:3000**).
 
-1. Install [Node.js](https://nodejs.org/) 20 or newer and clone this repository.
+1. Install [Node.js](https://nodejs.org/) 20.19 or newer, or 22.12 or newer, and clone this repository.
 2. From the repository root: `npm install`, then `npm run dev`.
 3. For day-to-day engineering commands (tests, lint, build), see **[Developer guide](../Development/README.md)**. For stack, migrations, and sync CLIs, see **[Scripts and CLI commands](scripts.md)**.
 
-The current Phase 01 scaffold may start **without** `.env` for UI-only work. **PostgreSQL** and `.env` (see below) are required once database migrations, the collector, and server functions are in use.
+The dashboard home route opens PostgreSQL through server functions, so normal local app usage requires **`DATABASE_URL`** in `.env` or the process environment. Use `./scripts/dev.sh` for the simplest DB + frontend session.
 
 ## PostgreSQL (required)
 
-Phase 01 stores dashboard and sync data in **PostgreSQL** on your machine (or in Docker).
+The dashboard stores sync data and computed metric inputs in **PostgreSQL** on your machine (or in Docker).
 
 ### Quick path: Docker Compose (recommended)
 
@@ -97,7 +97,7 @@ stale until you either click **Refresh** in the UI or run
 3. Ensure the DB user can **connect** to that database (`CONNECT`) and run migrations and app queries—typically `CREATE` on the database (if creating tables as owner), plus `SELECT`, `INSERT`, `UPDATE`, `DELETE` on application tables (exact `GRANT`s depend on whether migrations use the same role as the app; for solo local dev, making the user **owner** of the database is acceptable).
 4. Set `DATABASE_URL` in `.env` to a standard URI, for example:
    `postgresql://USER:PASSWORD@localhost:5432/dddd_dev`
-5. Apply database migrations once the URI is set (creates Phase 01 tables and enums):
+5. Apply database migrations once the URI is set (creates the dashboard schema):
 
    ```bash
    npm run db:migrate
@@ -109,7 +109,7 @@ stale until you either click **Refresh** in the UI or run
 
 ## Automated tests and CI
 
-Vitest integration tests read **`DATABASE_URL` from the process environment** only (the config does not inject it from `.env`). Export it in your shell, use a tool that loads `.env` into the environment, or run via **`./scripts/dev-up.sh`** / CI where the variable is set. Easiest local option: start Postgres (`npm run db:up` or `./scripts/dev-up.sh`), then `export DATABASE_URL=...` matching `.env.example` before `npm run test`.
+Vitest loads `.env` through the repo config, then points database-backed tests at **`TEST_DATABASE_URL`** when set, otherwise the default local `dddd_test` database. Keep fixture/test DBs separate from `dddd_dev`. Easiest local option: start Postgres with `npm run db:up` or `./scripts/dev-up.sh`, then run `npm run test`.
 
 Playwright fixture E2E (`npm run test:e2e`) does **not** use the live dashboard database. It reads **`TEST_DATABASE_URL`** when set and otherwise defaults to `postgresql://dddd:dddd_local_dev@127.0.0.1:54332/dddd_test`. The harness creates that database if missing, applies migrations, and sets **`DASHBOARD_E2E_REFRESH_STUB=1`** (see `scripts/e2e-web-server.sh`) so the refresh button exercises the server path without calling GitHub.
 
@@ -124,6 +124,7 @@ For the no-mock live guards, run **`npm run test:e2e:live`** or **`npm run test:
 - `docker-compose.override.yml.example` is the tracked template for the full-Docker workflow; copy it to `docker-compose.override.yml` (gitignored) and edit the bind-mount path. Compose auto-merges the override on top of the base file.
 - **`scripts/dev.sh`** — one-command dev session: starts DB stack then frontend; Ctrl+C stops both.
 - **`scripts/dev-up.sh`** / **`scripts/dev-down.sh`** — bring the local DB stack up or down independently (see [PostgreSQL](#postgresql-required)).
+- `scripts/dev.ts` and the local env helpers load local env values for dev commands and clear leaked E2E refresh stubs before normal local runs.
 - **[Scripts and CLI commands](scripts.md)** — `npm run` wrappers, `collector:refresh`, and `db:import-github`.
 - `config/team-mapping.example.json` is the tracked repository/team selection template.
 - `config/team-mapping.json` is the local editable config and is gitignored.
@@ -179,7 +180,7 @@ Example:
 ## First Real Test Checklist
 
 1. Install and start PostgreSQL; create `dddd_dev` (or your chosen DB name) and set `DATABASE_URL` in `.env`.
-2. Confirm repositories exist under `/Users/manczg/Documents/work/development`.
+2. Confirm repositories exist under `/Users/manczg/Documents/work/development`, or use `npm run db:import-github -- owner/repo [...]` for explicit GitHub repo imports without local clones.
 3. Edit `.env` and set `GITHUB_TOKEN`.
 4. Edit `config/team-mapping.json` to include only the repositories you want to test first.
 5. Keep `DASHBOARD_INITIAL_SYNC_FROM=2026-01-01` for the first run unless you need older PR data.

@@ -1,7 +1,7 @@
 # Data Driven Decision Dashboard Roadmap
 
-Status: Draft
-Last updated: 2026-05-18
+Status: Active
+Last updated: 2026-06-04
 
 ## Strategy
 
@@ -40,14 +40,14 @@ Design history:
 
 ## One-Page Scroll Layout Rule
 
-The app is a **single-page dashboard**. Do not add top-level pages, tabs, route changes, or side navigation for new metrics unless the roadmap explicitly changes this rule.
+The metric surface is a **single-page dashboard** with vertical scrolling. Do not add top-level pages, tabs, route changes, or side navigation for new metrics unless the roadmap explicitly changes this rule. Source/provenance drill-down routes may exist to explain collected data and sync state; they do not change the one-page metric-section rule.
 
 Each new metric phase extends the same page by appending a new vertical section **after the previous metric section**, matching the ordering in the latest mockup. Users scroll down to later metrics:
 
 1. Phase 01: PR Cycle Time remains the first viewport and primary top section.
 2. Phase 02: First Review Time appears below PR Cycle Time.
 3. Phase 03: PR Size appears below First Review Time.
-4. Future phases continue below the last implemented metric section.
+4. Future metric phases continue below the last implemented metric section.
 
 When a new mockup is generated, implement it by preserving the existing sections above and adding the new metric as the next scroll section at the bottom. Do not crowd new metric cards into the first viewport.
 
@@ -62,6 +62,6 @@ When a new mockup is generated, implement it by preserving the existing sections
 
 ## Current Priority
 
-Continue with Phase 04. The next release should add Jira API configuration, issue and status-history sync, PR-to-issue linking, and Jira-backed flow metrics (WIP, throughput, cycle time, missing-key hygiene) while preserving the Phase 01–03 sections above them.
+Continue with Phase 04. The next release should add Jira API configuration, issue and status-history sync, PR-to-issue linking, and Jira-backed flow metrics (WIP, throughput, cycle time, and Jira-backed issue-link hygiene) while preserving the Phase 01-03 sections above them. The existing PR-title missing Jira key signal remains a GitHub PR metadata hygiene item until Phase 04 explicitly reconciles it with Jira issue data.
 
 Track implementation status in [Trackable roadmap checklist](trackable-roadmap.md). The detailed next-step file is [Phase 04: Jira Flow Metrics](../Backlog/phase-04-jira-flow-metrics.md).

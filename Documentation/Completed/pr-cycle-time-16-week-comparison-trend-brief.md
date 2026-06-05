@@ -1,5 +1,9 @@
 # Feature Brief: PR Cycle Time 16-Week Comparison Trend
 
+Status: Implemented as FIX-003.
+
+> Current follow-up note: this brief intentionally scoped comparison history to PR Cycle Time first. FIX-004 later expanded the shared comparison presentation to First Review and PR Size.
+
 ## Problem
 
 Users cannot easily reconcile the Median PR Cycle Time card's current-versus-previous 8-week comparison with the trend chart because the chart only shows the current 8 weeks.
@@ -41,8 +45,8 @@ Engineering leaders use the one-page dashboard to understand whether PR cycle ti
 
 ## Out of Scope
 
-- First Review trend changes, because this should be validated on PR Cycle Time before broadening the pattern.
-- PR Size trend changes, because PR Size has separate partial-week and line-count behavior.
+- First Review trend changes in FIX-003, because this was validated on PR Cycle Time before broadening the pattern.
+- PR Size trend changes in FIX-003, because PR Size had separate partial-week and line-count behavior.
 - User-controlled date ranges, because the immediate problem is explaining the existing default comparison.
 - 24-week or longer trend history, because 16 weeks is the smallest range that fully explains the card's comparison.
 - Changing the median or percent-change formula, because the issue is presentation clarity, not calculation correctness.
@@ -93,8 +97,8 @@ Engineering leaders use the one-page dashboard to understand whether PR cycle ti
 - The previous and current segments are not connected by a line across the divider.
 - Null buckets render as gaps, not zeroes.
 - The card's `medianHours`, `previousMedianHours`, `trendPercent`, `baselineStatus`, and merged PR count remain unchanged for the same fixture data.
-- First Review remains an 8-week duration chart.
-- PR Size remains line-mode with its completed-week plus optional current-partial behavior unchanged.
+- First Review remains an 8-week duration chart during FIX-003; FIX-004 later updates it.
+- PR Size remains line-mode with its completed-week plus optional current-partial behavior unchanged during FIX-003; FIX-004 later updates completed history.
 - The SVG `aria-label` identifies the chart as a 16-week PR Cycle Time comparison trend.
 - The screen-reader list includes all 16 buckets and identifies each bucket as previous or current.
 - The visible UI does not rely on color alone to distinguish previous from current.
@@ -117,7 +121,7 @@ Engineering leaders use the one-page dashboard to understand whether PR cycle ti
 
 ## Future Iterations
 
-- Extend the same comparison-history pattern to First Review if the PR Cycle Time version proves clearer.
+- Completed in FIX-004: extend the comparison-history pattern to First Review and expand PR Size completed history.
 - Add tooltip or hover details for exact weekly medians and PR counts.
 - Add a compact range selector only if users later need history beyond the card comparison window.
 
