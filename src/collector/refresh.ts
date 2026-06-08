@@ -27,6 +27,18 @@ export class AlreadyRunningError extends Error {
   }
 }
 
+export type ProgressEvent =
+  | { type: 'phase_start'; phase: string; total: number }
+  | {
+      type: 'repo_done'
+      phase: string
+      repo: string
+      done: number
+      total: number
+      inFlightRepos: string[]
+      errorCount: number
+    }
+
 function isUniqueViolation(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false
   const cause = (err as { cause?: unknown }).cause
@@ -97,7 +109,10 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
  * Scans local repositories, upserts metadata, syncs GitHub PRs for `ready`
  * repositories, and records sync run / error rows.
  */
-export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbeatIntervalMs?: number }): Promise<RefreshSummary> {
+export async function refreshLocalData(
+  input?: Partial<AppEnv>,
+  opts?: { heartbeatIntervalMs?: number; onProgress?: (event: ProgressEvent) => void },
+): Promise<RefreshSummary> {
   const mergedEnv = buildProcessEnvFromPartial(input)
   const env = getEnv(mergedEnv)
   const db = createDb(env.databaseUrl)
@@ -149,6 +164,9 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
 
   let syncRunId: string | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  let localErrorCount = 0
+  const phaseTimings: Record<string, number> = {}
+  const inFlight = new Set<string>()
 
   const insertError = async (repositoryId: string | null, source: string, message: string) => {
     if (syncRunId === null) return
@@ -158,6 +176,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
       source,
       message,
     })
+    localErrorCount++
   }
 
   try {
@@ -206,9 +225,18 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
 
     const mapping = await loadTeamMapping(env.teamMappingPath)
     const repoRoot = path.resolve(env.repoRoot)
+
+    // Phase: scanning_repositories
+    const scanStart = Date.now()
     const candidates = await discoverRepositories(repoRoot)
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'scanning_repositories', phaseTotal: candidates.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'scanning_repositories', total: candidates.length })
 
     const repoSync = await upsertRepositories(db, repoRoot, candidates, mapping, env.githubSyncOwner)
+    phaseTimings['scanning_repositories'] = Date.now() - scanStart
 
     summary.reposScanned = repoSync.scanned
     summary.reposIncluded = repoSync.ready
@@ -238,8 +266,18 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
     let sizeSyncPartial = false
     const reviewEligibleRepoIds = new Set<string>()
 
+    // Phase: pr_sync
+    let phaseDone = 0
+    const prSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'pr_sync', phaseTotal: syncTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'pr_sync', total: syncTargets.length })
+
     await runWithConcurrency(syncTargets, env.githubSyncConcurrency, async (repo) => {
       prSyncAttempts += 1
+      inFlight.add(repo.name)
       try {
         const last = repo.lastPrSyncedAt
         const prs = await client.listPullRequests({
@@ -283,45 +321,127 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         await insertError(repo.id, 'github_sync', msg)
+      } finally {
+        phaseDone += 1
+        inFlight.delete(repo.name)
+        const snapshot = [...inFlight]
+        await db
+          .update(syncRuns)
+          .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+          .where(eq(syncRuns.id, syncRunId!))
+        opts?.onProgress?.({
+          type: 'repo_done',
+          phase: 'pr_sync',
+          repo: repo.name,
+          done: phaseDone,
+          total: syncTargets.length,
+          inFlightRepos: snapshot,
+          errorCount: localErrorCount,
+        })
       }
     })
+    phaseTimings['pr_sync'] = Date.now() - prSyncStart
 
     const reviewTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
+
+    // Phase: review_sync
+    phaseDone = 0
+    inFlight.clear()
+    const reviewSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'review_sync', phaseTotal: reviewTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'review_sync', total: reviewTargets.length })
+
     if (reviewTargets.length > 0) {
       const reviewNow = new Date()
       await runWithConcurrency(reviewTargets, env.githubSyncConcurrency, async (repo) => {
-        const result = await syncRepositoryReviews(
-          db,
-          { client, now: reviewNow, syncRunId: syncRunId! },
-          {
-            id: repo.id,
-            owner: repo.owner,
-            repo: repo.repo,
-            lastReviewSyncedAt: repo.lastReviewSyncedAt,
-          },
-        )
-        summary.reviewSyncErrors += result.perPrErrors.length
-      })
-    }
-
-    const sizeTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
-    if (sizeTargets.length > 0) {
-      await runWithConcurrency(sizeTargets, env.githubSyncConcurrency, async (repo) => {
-        const counts = await syncRepositoryPrSizes({
-          db,
-          repoPath: repo.path,
-          repositoryId: repo.id,
-          owner: repo.owner!,
-          repo: repo.repo!,
-          syncRunId: syncRunId!,
-          githubClient: client,
-        })
-        summary.sizeSyncErrors += counts.failed
-        if (isPrSizeSyncPartial(counts)) {
-          sizeSyncPartial = true
+        inFlight.add(repo.name)
+        try {
+          const result = await syncRepositoryReviews(
+            db,
+            { client, now: reviewNow, syncRunId: syncRunId! },
+            {
+              id: repo.id,
+              owner: repo.owner,
+              repo: repo.repo,
+              lastReviewSyncedAt: repo.lastReviewSyncedAt,
+            },
+          )
+          summary.reviewSyncErrors += result.perPrErrors.length
+        } finally {
+          phaseDone += 1
+          inFlight.delete(repo.name)
+          const snapshot = [...inFlight]
+          await db
+            .update(syncRuns)
+            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+            .where(eq(syncRuns.id, syncRunId!))
+          opts?.onProgress?.({
+            type: 'repo_done',
+            phase: 'review_sync',
+            repo: repo.name,
+            done: phaseDone,
+            total: reviewTargets.length,
+            inFlightRepos: snapshot,
+            errorCount: localErrorCount,
+          })
         }
       })
     }
+    phaseTimings['review_sync'] = Date.now() - reviewSyncStart
+
+    const sizeTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
+
+    // Phase: pr_size_sync
+    phaseDone = 0
+    inFlight.clear()
+    const sizeSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'pr_size_sync', phaseTotal: sizeTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'pr_size_sync', total: sizeTargets.length })
+
+    if (sizeTargets.length > 0) {
+      await runWithConcurrency(sizeTargets, env.githubSyncConcurrency, async (repo) => {
+        inFlight.add(repo.name)
+        try {
+          const counts = await syncRepositoryPrSizes({
+            db,
+            repoPath: repo.path,
+            repositoryId: repo.id,
+            owner: repo.owner!,
+            repo: repo.repo!,
+            syncRunId: syncRunId!,
+            githubClient: client,
+          })
+          summary.sizeSyncErrors += counts.failed
+          if (isPrSizeSyncPartial(counts)) {
+            sizeSyncPartial = true
+          }
+        } finally {
+          phaseDone += 1
+          inFlight.delete(repo.name)
+          const snapshot = [...inFlight]
+          await db
+            .update(syncRuns)
+            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+            .where(eq(syncRuns.id, syncRunId!))
+          opts?.onProgress?.({
+            type: 'repo_done',
+            phase: 'pr_size_sync',
+            repo: repo.name,
+            done: phaseDone,
+            total: sizeTargets.length,
+            inFlightRepos: snapshot,
+            errorCount: localErrorCount,
+          })
+        }
+      })
+    }
+    phaseTimings['pr_size_sync'] = Date.now() - sizeSyncStart
 
     const errorRows = await db.select({ id: syncErrors.id }).from(syncErrors).where(eq(syncErrors.syncRunId, syncRunId))
     const errorRowCount = errorRows.length
@@ -347,6 +467,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
         errorCount: errorRowCount,
         status: runStatus,
         message: null,
+        phaseTimings,
       })
       .where(eq(syncRuns.id, syncRunId))
 

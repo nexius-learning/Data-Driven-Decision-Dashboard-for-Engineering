@@ -33,6 +33,23 @@ describe('db migrations', () => {
     expect(rows[0]?.one).toBe(1)
   })
 
+  it('sync_runs_has_progress_columns', async () => {
+    const rows = await db.execute<{ column_name: string; data_type: string }>(sql`
+      SELECT column_name, data_type
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'sync_runs'
+        AND column_name IN ('current_phase', 'phase_done', 'phase_total', 'in_flight_repos', 'phase_timings')
+      ORDER BY column_name
+    `)
+    const map = Object.fromEntries(rows.map((r) => [r.column_name, r.data_type]))
+    expect(map['current_phase']).toBe('text')
+    expect(map['phase_done']).toBe('integer')
+    expect(map['phase_total']).toBe('integer')
+    expect(map['in_flight_repos']).toBe('jsonb')
+    expect(map['phase_timings']).toBe('jsonb')
+  })
+
   it('db_constraints_reject_duplicate_repository_path', async () => {
     const dupPath = `/test-dup-repo-path-${crypto.randomUUID()}`
     await db.insert(repositories).values({

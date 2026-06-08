@@ -29,6 +29,13 @@
       "when": 1780925530000,
       "tag": "0003_single_flight",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780934200000,
+      "tag": "0004_refresh_progress",
+      "breakpoints": true
     }
   ]
 }
