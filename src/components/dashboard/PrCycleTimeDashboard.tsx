@@ -416,7 +416,7 @@ export function PrCycleTimeDashboard({
               </thead>
               <tbody>
                 {data.teamBreakdown.map((row) => (
-                  <tr key={row.team}>
+                  <tr key={row.team} className={activeTeam === row.team ? 'pr-dashboard__team-row--active' : undefined}>
                     <td>
                       <TeamLabel team={row.team} dotClassName={teamDotClass(row, data.teamBreakdown)} />
                     </td>
@@ -433,9 +433,9 @@ export function PrCycleTimeDashboard({
           </div>
         </section>
 
-        <FirstReviewSection firstReview={data.firstReview} />
+        <FirstReviewSection firstReview={data.firstReview} activeTeam={activeTeam} />
 
-        <PrSizeSection prSize={data.prSize} />
+        <PrSizeSection prSize={data.prSize} activeTeam={activeTeam} />
 
       </div>
 

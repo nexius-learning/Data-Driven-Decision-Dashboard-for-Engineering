@@ -6,9 +6,10 @@ import { PrSizeTrendChart } from './PrSizeTrendChart'
 
 type Props = {
   prSize: PrSize | undefined
+  activeTeam?: string
 }
 
-export function PrSizeSection({ prSize }: Props) {
+export function PrSizeSection({ prSize, activeTeam }: Props) {
   if (prSize === undefined) return null
   return (
     <section className="pr-dashboard__phase-section" data-testid="phase03-section" aria-label="PR Size">
@@ -22,7 +23,7 @@ export function PrSizeSection({ prSize }: Props) {
       </div>
       <div data-testid="phase03-row-2" className="phase03-row-2 pr-dashboard__section-grid">
         <PrSizeTrendChart weeklyTrend={prSize.weeklyTrend} />
-        <PrSizeTeamTable rows={prSize.teamBreakdown} />
+        <PrSizeTeamTable rows={prSize.teamBreakdown} activeTeam={activeTeam} />
       </div>
     </section>
   )

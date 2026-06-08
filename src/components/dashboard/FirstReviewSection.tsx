@@ -6,9 +6,10 @@ import { FirstReviewTrendChart } from './FirstReviewTrendChart'
 
 type Props = {
   firstReview: FirstReview | undefined
+  activeTeam?: string
 }
 
-export function FirstReviewSection({ firstReview }: Props) {
+export function FirstReviewSection({ firstReview, activeTeam }: Props) {
   if (firstReview === undefined) return null
   return (
     <section
@@ -33,7 +34,7 @@ export function FirstReviewSection({ firstReview }: Props) {
           comparisonWeeklyTrend={firstReview.comparisonWeeklyTrend}
           metric={firstReview.metric}
         />
-        <FirstReviewTeamTable rows={firstReview.teamBreakdown} />
+        <FirstReviewTeamTable rows={firstReview.teamBreakdown} activeTeam={activeTeam} />
       </div>
     </section>
   )

@@ -5,6 +5,7 @@ import { TrendComparison } from '~/components/dashboard/trend-comparison'
 
 type Props = {
   rows: PrSizeTeamRow[]
+  activeTeam?: string
 }
 
 function formatMedianLines(lines: number | null): string {
@@ -22,7 +23,7 @@ function formatPreviousMedianLines(lines: number | null): string {
   return `${lines} lines`
 }
 
-export function PrSizeTeamTable({ rows }: Props) {
+export function PrSizeTeamTable({ rows, activeTeam }: Props) {
   return (
     <section
       className="pr-dashboard__card"
@@ -54,7 +55,7 @@ export function PrSizeTeamTable({ rows }: Props) {
               </tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.team}>
+                <tr key={r.team} className={activeTeam === r.team ? 'pr-dashboard__team-row--active' : undefined}>
                   <td>
                     <TeamLabel team={r.team} dotClassName={teamDotClass(r, rows)} />
                   </td>

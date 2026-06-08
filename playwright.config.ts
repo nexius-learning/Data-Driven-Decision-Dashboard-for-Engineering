@@ -15,6 +15,7 @@ if (!process.env.DATABASE_URL?.trim()) {
 }
 process.env.DASHBOARD_REPO_ROOT ??= path.join(repoRoot, '.tmp/e2e-empty-repo-root')
 process.env.TEAM_MAPPING_PATH ??= path.join(repoRoot, 'config/team-mapping.example.json')
+process.env.DASHBOARD_E2E_PORT ??= '3100'
 
 const testIgnore = ['**/live-github-sync.spec.ts', '**/live-current-server.spec.ts', '**/*.fixture.test.ts']
 
@@ -27,10 +28,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   webServer: {
-    command: 'DASHBOARD_E2E_PORT=3100 bash scripts/e2e-web-server.sh',
+    command: 'bash scripts/e2e-web-server.sh',
     cwd: repoRoot,
     url: 'http://127.0.0.1:3100',
-    reuseExistingServer: false,
+    reuseExistingServer: !!process.env.E2E_REUSE_SERVER,
     timeout: 120_000,
     stdout: 'pipe',
     stderr: 'pipe',

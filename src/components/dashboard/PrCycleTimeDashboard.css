@@ -620,6 +620,10 @@
   border-bottom: none;
 }
 
+.pr-dashboard__table tr.pr-dashboard__team-row--active td {
+  background-color: #f0f9ff;
+}
+
 .pr-dashboard__team-cell {
   display: flex;
   align-items: flex-start;

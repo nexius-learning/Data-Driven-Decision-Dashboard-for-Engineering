@@ -6,13 +6,14 @@ import { TrendComparison } from '~/components/dashboard/trend-comparison'
 
 type Props = {
   rows: FirstReviewTeamRow[]
+  activeTeam?: string
 }
 
 function fmtHours(h: number | null): string {
   return h === null ? '—' : formatCycleDuration(h)
 }
 
-export function FirstReviewTeamTable({ rows }: Props) {
+export function FirstReviewTeamTable({ rows, activeTeam }: Props) {
   return (
     <section className="pr-dashboard__card" data-testid="first-review-team-table" aria-label="Review team breakdown">
       <h3 className="pr-dashboard__card-title">Review team breakdown</h3>
@@ -40,7 +41,7 @@ export function FirstReviewTeamTable({ rows }: Props) {
               </tr>
             ) : (
               rows.map((r) => (
-                <tr key={r.team}>
+                <tr key={r.team} className={activeTeam === r.team ? 'pr-dashboard__team-row--active' : undefined}>
                   <td>
                     <TeamLabel team={r.team} dotClassName={teamDotClass(r, rows)} />
                   </td>

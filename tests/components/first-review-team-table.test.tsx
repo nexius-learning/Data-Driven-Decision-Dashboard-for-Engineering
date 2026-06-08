@@ -84,4 +84,37 @@ describe('FirstReviewTeamTable', () => {
     expect(container.querySelector('.pr-dashboard__team-dot--unassigned')).toBeTruthy()
     expect(screen.getByText('needs team mapping')).toBeTruthy()
   })
+
+  it('active_team_row_gets_highlight_class', () => {
+    const { container } = render(
+      <FirstReviewTeamTable
+        rows={[row({ team: 'Backend' }), row({ team: 'Frontend' })]}
+        activeTeam="Backend"
+      />,
+    )
+    const rows = container.querySelectorAll('tbody tr')
+    expect(rows[0].classList.contains('pr-dashboard__team-row--active')).toBe(true)
+    expect(rows[1].classList.contains('pr-dashboard__team-row--active')).toBe(false)
+  })
+
+  it('no_highlight_when_activeTeam_is_undefined', () => {
+    const { container } = render(
+      <FirstReviewTeamTable rows={[row({ team: 'Backend' }), row({ team: 'Frontend' })]} />,
+    )
+    const rows = container.querySelectorAll('tbody tr')
+    expect(rows[0].classList.contains('pr-dashboard__team-row--active')).toBe(false)
+    expect(rows[1].classList.contains('pr-dashboard__team-row--active')).toBe(false)
+  })
+
+  it('all_rows_remain_visible_when_activeTeam_is_set', () => {
+    render(
+      <FirstReviewTeamTable
+        rows={[row({ team: 'Backend' }), row({ team: 'Frontend' }), row({ team: 'Platform' })]}
+        activeTeam="Backend"
+      />,
+    )
+    expect(screen.getByText('Backend')).toBeTruthy()
+    expect(screen.getByText('Frontend')).toBeTruthy()
+    expect(screen.getByText('Platform')).toBeTruthy()
+  })
 })
