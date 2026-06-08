@@ -71,6 +71,7 @@ function dashboard(overrides: Partial<PrCycleTimeDashboardData> = {}): PrCycleTi
     exceptions: [],
     weeklyTrend,
     comparisonWeeklyTrend: [],
+    allTeams: ['Alpha'],
     teamBreakdown: [
       {
         team: 'Alpha',

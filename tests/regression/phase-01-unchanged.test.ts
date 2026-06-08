@@ -38,7 +38,8 @@ describe('phase 01 unchanged regression', () => {
       exceptions: [],
       weeklyTrend: [],
       comparisonWeeklyTrend: [],
-      teamBreakdown: [],
+      allTeams: [],
+    teamBreakdown: [],
       freshness: {
         reposScanned: 0,
         prMetadataSyncedAt: null,

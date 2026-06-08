@@ -245,9 +245,9 @@ export function PrCycleTimeDashboard({
                   onChange={(e) => onTeamSelect?.(e.target.value || undefined)}
                 >
                   <option value="">All Teams</option>
-                  {data.teamBreakdown.map((t) => (
-                    <option key={t.team} value={t.team}>
-                      {t.team}
+                  {data.allTeams.map((team) => (
+                    <option key={team} value={team}>
+                      {team}
                     </option>
                   ))}
                 </select>

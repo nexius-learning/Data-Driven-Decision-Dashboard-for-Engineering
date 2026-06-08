@@ -138,7 +138,7 @@ test('team_filter_selecting_team_updates_url_and_headline_metric', async ({ page
   await expect(page.getByTestId('median-pr-cycle-time')).toContainText('24h', { timeout: 10_000 })
 })
 
-test('team_filter_table_shows_all_teams_when_team_selected', async ({ page }) => {
+test('team_filter_table_shows_only_active_team_when_selected', async ({ page }) => {
   await page.goto('/')
   await waitForHydration(page)
   await page.selectOption('select[aria-label="Filter by team"]', 'Backend')
@@ -146,7 +146,7 @@ test('team_filter_table_shows_all_teams_when_team_selected', async ({ page }) =>
 
   const table = page.getByRole('table', { name: /^Team breakdown$/ })
   await expect(table.getByRole('row', { name: /Backend/ })).toBeVisible()
-  await expect(table.getByRole('row', { name: /Frontend/ })).toBeVisible()
+  await expect(table.getByRole('row', { name: /Frontend/ })).not.toBeVisible()
 })
 
 test('team_filter_selected_team_row_is_highlighted', async ({ page }) => {

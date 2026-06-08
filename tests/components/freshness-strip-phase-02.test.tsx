@@ -22,6 +22,7 @@ function base(overrides: Partial<DashboardModel> = {}): DashboardModel {
       medianHours: null,
     })),
     comparisonWeeklyTrend: [],
+    allTeams: [],
     teamBreakdown: [],
     freshness: {
       reposScanned: 1,

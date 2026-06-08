@@ -19,9 +19,9 @@ function ex(overrides: Partial<PrSizeException> = {}): PrSizeException {
 }
 
 describe('PrSizeExceptionsPanel', () => {
-  it('panel_hidden_when_no_exceptions', () => {
-    const { container } = render(<PrSizeExceptionsPanel exceptions={[]} />)
-    expect(container.firstChild).toBeNull()
+  it('panel_shows_empty_state_when_no_exceptions', () => {
+    render(<PrSizeExceptionsPanel exceptions={[]} />)
+    expect(screen.getByText('No oversized PR patterns in this range')).toBeTruthy()
   })
 
   it('panel_shows_team_and_description', () => {

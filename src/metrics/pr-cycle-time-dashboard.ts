@@ -172,6 +172,7 @@ export type PrCycleTimeDashboard = {
   exceptions: PrCycleTimeException[]
   weeklyTrend: Array<{ weekStart: string; medianHours: number | null }>
   comparisonWeeklyTrend: PrCycleTimeComparisonTrendPoint[]
+  allTeams: string[]
   teamBreakdown: Array<{
     team: string
     mergedPrs: number
@@ -348,8 +349,10 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     teamLabels.add(repoTeamLabel(r))
   }
   const sortedTeamLabels = [...teamLabels].sort(compareTeamLabels)
+  const displayTeamLabels =
+    input.team !== undefined ? sortedTeamLabels.filter((l) => l === input.team) : sortedTeamLabels
 
-  const teamBreakdown: TeamBreakdownRow[] = sortedTeamLabels.map((teamLabel) => {
+  const teamBreakdown: TeamBreakdownRow[] = displayTeamLabels.map((teamLabel) => {
     const repoIdsForTeam = new Set(
       allMetricsRepos.filter((r) => repoTeamLabel(r) === teamLabel).map((r) => r.id),
     )
@@ -489,7 +492,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
           weeklyTrend: getPrSizeWeeklyTrend(sizePrsForTrend, PR_SIZE_COMPLETED_TREND_WEEKS, now, {
             includeCurrentPartial: true,
           }),
-          teamBreakdown: getPrSizeTeamBreakdown(sizePrsForTrend, current, previous, sortedTeamLabels),
+          teamBreakdown: getPrSizeTeamBreakdown(sizePrsForTrend, current, previous, displayTeamLabels),
         }
       : undefined
 
@@ -509,6 +512,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     exceptions: limited,
     weeklyTrend,
     comparisonWeeklyTrend,
+    allTeams: sortedTeamLabels,
     teamBreakdown,
     freshness: {
       reposScanned,

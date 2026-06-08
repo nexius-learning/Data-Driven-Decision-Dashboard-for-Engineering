@@ -698,7 +698,24 @@ describe('pr-cycle-time-dashboard', () => {
     expect(d.metric.mergedPrCount).toBe(1)
   })
 
-  it('team_filter_shows_all_teams_in_breakdown', async () => {
+  it('no_team_filter_teamBreakdown_contains_all_teams', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    await insertPr(alphaRid, { number: 1, openedAt: new Date(merged.getTime() - 10 * 3600000), mergedAt: merged })
+    await insertPr(betaRid, { number: 2, openedAt: new Date(merged.getTime() - 100 * 3600000), mergedAt: merged })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
+    expect(d.teamBreakdown).toHaveLength(2)
+    expect(d.teamBreakdown.map((t) => t.team)).toContain('Alpha')
+    expect(d.teamBreakdown.map((t) => t.team)).toContain('Beta')
+  })
+
+  it('allTeams_always_contains_all_teams_regardless_of_filter', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)
     const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
@@ -710,11 +727,48 @@ describe('pr-cycle-time-dashboard', () => {
     await insertPr(betaRid, { number: 2, openedAt: new Date(merged.getTime() - 100 * 3600000), mergedAt: merged })
 
     const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
-    expect(d.teamBreakdown).toHaveLength(2)
-    const alpha = d.teamBreakdown.find((t) => t.team === 'Alpha')
-    const beta = d.teamBreakdown.find((t) => t.team === 'Beta')
-    expect(alpha?.medianHours).toBe(10)
-    expect(beta?.medianHours).toBe(100)
+    expect(d.allTeams).toContain('Alpha')
+    expect(d.allTeams).toContain('Beta')
+    expect(d.teamBreakdown).toHaveLength(1)
+  })
+
+  it('team_filter_teamBreakdown_shows_only_active_team', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    await insertPr(alphaRid, { number: 1, openedAt: new Date(merged.getTime() - 10 * 3600000), mergedAt: merged })
+    await insertPr(betaRid, { number: 2, openedAt: new Date(merged.getTime() - 100 * 3600000), mergedAt: merged })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    expect(d.teamBreakdown).toHaveLength(1)
+    expect(d.teamBreakdown[0].team).toBe('Alpha')
+    expect(d.teamBreakdown[0].medianHours).toBe(10)
+  })
+
+  it('team_filter_prSize_teamBreakdown_shows_only_active_team', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    // PRs with size data so prSize section is populated
+    await insertPr(alphaRid, { number: 1, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 50, deletions: 10, changedFiles: 3 })
+    await insertPr(alphaRid, { number: 2, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 60, deletions: 5, changedFiles: 2 })
+    await insertPr(alphaRid, { number: 3, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 40, deletions: 20, changedFiles: 4 })
+    await insertPr(betaRid, { number: 4, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 200, deletions: 50, changedFiles: 10 })
+    await insertPr(betaRid, { number: 5, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 210, deletions: 60, changedFiles: 12 })
+    await insertPr(betaRid, { number: 6, mergedAt: merged, openedAt: new Date(merged.getTime() - 1 * 3600000), additions: 190, deletions: 40, changedFiles: 8 })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    expect(d.prSize).toBeDefined()
+    expect(d.prSize!.teamBreakdown).toHaveLength(1)
+    expect(d.prSize!.teamBreakdown[0].team).toBe('Alpha')
   })
 
   it('team_filter_scopes_exceptions_to_selected_team', async () => {

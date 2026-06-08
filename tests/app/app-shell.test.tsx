@@ -20,7 +20,8 @@ const mockDashboard: PrCycleTimeDashboard = {
     medianHours: null,
   })),
   comparisonWeeklyTrend: [],
-  teamBreakdown: [],
+  allTeams: [],
+    teamBreakdown: [],
   freshness: {
     reposScanned: 0,
     prMetadataSyncedAt: null,

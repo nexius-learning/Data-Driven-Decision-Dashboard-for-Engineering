@@ -35,6 +35,7 @@ function baseDashboard(overrides: Partial<DashboardModel> = {}): DashboardModel 
     exceptions: [],
     weeklyTrend,
     comparisonWeeklyTrend,
+    allTeams: ['Alpha'],
     teamBreakdown: [
       {
         team: 'Alpha',
@@ -637,10 +638,11 @@ describe.sequential('PrCycleTimeDashboard', () => {
   })
 
   it('team_filter_unassigned_appears_last', () => {
-    // teamBreakdown arrives pre-sorted by compareTeamLabels (Alpha < Zeta < Unassigned)
+    // allTeams arrives pre-sorted by compareTeamLabels (Alpha < Zeta < Unassigned)
     render(
       <PrCycleTimeDashboard
         data={baseDashboard({
+          allTeams: ['Alpha', 'Zeta', 'Unassigned'],
           teamBreakdown: [
             { team: 'Alpha', mergedPrs: 3, medianHours: 8, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
             { team: 'Zeta', mergedPrs: 2, medianHours: 12, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
@@ -679,6 +681,7 @@ describe.sequential('PrCycleTimeDashboard', () => {
     render(
       <PrCycleTimeDashboard
         data={baseDashboard({
+          allTeams: ['Beta', 'Alpha'],
           teamBreakdown: [
             { team: 'Beta', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
             { team: 'Alpha', mergedPrs: 3, medianHours: 8, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
@@ -691,5 +694,23 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(options[0]).toBe('All Teams')
     expect(options).toContain('Beta')
     expect(options).toContain('Alpha')
+  })
+
+  it('team_filter_dropdown_shows_all_teams_when_teamBreakdown_is_filtered', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          allTeams: ['Alpha', 'Beta'],
+          teamBreakdown: [
+            { team: 'Alpha', mergedPrs: 3, medianHours: 8, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+        activeTeam="Alpha"
+      />,
+    )
+    const select = screen.getByRole('combobox', { name: 'Filter by team' })
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
+    expect(options).toContain('Alpha')
+    expect(options).toContain('Beta')
   })
 })

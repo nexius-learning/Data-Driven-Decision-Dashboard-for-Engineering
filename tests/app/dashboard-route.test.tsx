@@ -21,6 +21,7 @@ const mockDashboard: PrCycleTimeDashboard = {
     medianHours: null,
   })),
   comparisonWeeklyTrend: [],
+  allTeams: [],
   teamBreakdown: [],
   freshness: {
     reposScanned: 1,
@@ -152,6 +153,7 @@ describe('dashboard route', () => {
   it('team_filter_dropdown_shows_active_team_from_url', async () => {
     vi.mocked(getDashboardData).mockImplementationOnce(async () => ({
       ...mockDashboard,
+      allTeams: ['Frontend'],
       teamBreakdown: [
         { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
       ],
@@ -169,6 +171,7 @@ describe('dashboard route', () => {
   it('team_filter_dropdown_navigates_to_team_url_on_selection', async () => {
     const frontendDashboard = {
       ...mockDashboard,
+      allTeams: ['Frontend'],
       teamBreakdown: [
         { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
       ],
@@ -190,6 +193,7 @@ describe('dashboard route', () => {
   it('team_filter_dropdown_clears_team_param_when_all_teams_selected', async () => {
     vi.mocked(getDashboardData).mockImplementationOnce(async () => ({
       ...mockDashboard,
+      allTeams: ['Frontend'],
       teamBreakdown: [
         { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
       ],
