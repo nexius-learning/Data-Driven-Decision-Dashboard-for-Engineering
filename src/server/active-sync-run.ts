@@ -11,6 +11,7 @@ export async function getActiveSyncRun({ db }: { db: AppDb }): Promise<ActiveSyn
       phaseTotal: syncRuns.phaseTotal,
       inFlightRepos: syncRuns.inFlightRepos,
       errorCount: syncRuns.errorCount,
+      heartbeatAt: syncRuns.heartbeat,
     })
     .from(syncRuns)
     .where(eq(syncRuns.status, 'running'))

@@ -12,6 +12,7 @@ function running(overrides: Partial<ActiveSyncRun> = {}): ActiveSyncRun {
     phaseTotal: null,
     inFlightRepos: null,
     errorCount: 0,
+    heartbeatAt: null,
     ...overrides,
   }
 }
@@ -93,5 +94,20 @@ describe('deriveRefreshButtonState', () => {
   it('derive_running_null_phase_returns_empty_string', () => {
     const state = deriveRefreshButtonState(running({ currentPhase: null }), NOW_MS, TTL_MS)
     if (state.status === 'running') expect(state.phaseLabel).toBe('')
+  })
+
+  it('derive_idle_for_stale_heartbeat', () => {
+    const staleRun = running({ heartbeatAt: new Date(NOW_MS - TTL_MS - 1) })
+    expect(deriveRefreshButtonState(staleRun, NOW_MS, TTL_MS)).toEqual({ status: 'idle' })
+  })
+
+  it('derive_running_when_heartbeat_is_live', () => {
+    const liveRun = running({ heartbeatAt: new Date(NOW_MS - TTL_MS + 1) })
+    expect(deriveRefreshButtonState(liveRun, NOW_MS, TTL_MS).status).toBe('running')
+  })
+
+  it('derive_running_when_heartbeat_is_null', () => {
+    const run = running({ heartbeatAt: null })
+    expect(deriveRefreshButtonState(run, NOW_MS, TTL_MS).status).toBe('running')
   })
 })

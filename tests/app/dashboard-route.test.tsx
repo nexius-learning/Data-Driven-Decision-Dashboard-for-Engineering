@@ -4,6 +4,7 @@ import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/rea
 
 import type { PrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
 import { getDashboardData } from '../../src/server/dashboard-functions'
+import type { ActiveSyncRun } from '../../src/server/derive-refresh-button-state'
 import { routeTree } from '../../src/routeTree.gen'
 
 const mockDashboard: PrCycleTimeDashboard = {
@@ -55,6 +56,10 @@ vi.mock('../../src/server/dashboard-functions', () => ({
   getDashboardData: vi.fn(async () => mockDashboard),
   loadDashboardPayload: vi.fn(async () => mockDashboard),
   refreshLocalDataFn: vi.fn(),
+}))
+
+vi.mock('../../src/server/source-functions', () => ({
+  getActiveSyncRunFn: vi.fn(),
 }))
 
 vi.mock('@tanstack/react-start', async (importOriginal) => {
@@ -148,6 +153,51 @@ describe('dashboard route', () => {
     await waitFor(() => {
       expect(invalidate).toHaveBeenCalled()
     })
+  })
+
+  it('mount_attaches_to_live_running_run', async () => {
+    const { getActiveSyncRunFn } = await import('../../src/server/source-functions')
+    const liveRun: ActiveSyncRun = {
+      currentPhase: 'pr_sync',
+      phaseDone: 3,
+      phaseTotal: 10,
+      inFlightRepos: [],
+      errorCount: 0,
+      heartbeatAt: new Date(Date.now() - 1_000),
+    }
+    useServerFnMock.mockImplementation(((fn: unknown) => {
+      if (fn === getActiveSyncRunFn) return () => Promise.resolve(liveRun)
+      return () => Promise.resolve({ ok: true, summary: refreshSummary })
+    }) as never)
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Syncing pull requests/i })).toBeDefined()
+    })
+  })
+
+  it('mount_ignores_zombie_run', async () => {
+    const { getActiveSyncRunFn } = await import('../../src/server/source-functions')
+    const zombieRun: ActiveSyncRun = {
+      currentPhase: 'pr_sync',
+      phaseDone: 3,
+      phaseTotal: 10,
+      inFlightRepos: [],
+      errorCount: 0,
+      heartbeatAt: new Date(Date.now() - 300_000),
+    }
+    useServerFnMock.mockImplementation(((fn: unknown) => {
+      if (fn === getActiveSyncRunFn) return () => Promise.resolve(zombieRun)
+      return () => Promise.resolve({ ok: true, summary: refreshSummary })
+    }) as never)
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await screen.findByRole('button', { name: 'Refresh' })
+    expect(screen.queryByRole('button', { name: /Syncing|Scanning/i })).toBeNull()
   })
 
   it('team_filter_dropdown_shows_active_team_from_url', async () => {
