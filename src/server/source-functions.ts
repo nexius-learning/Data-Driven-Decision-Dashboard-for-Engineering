@@ -42,6 +42,18 @@ export const getSyncSourceData = createServerFn({ method: 'GET' }).handler(async
   }
 })
 
+export const getActiveSyncRunFn = createServerFn({ method: 'GET' }).handler(async () => {
+  const { createDb } = await import('~/db/client')
+  const { getEnv } = await import('~/config/env')
+  const { getActiveSyncRun } = await import('~/server/active-sync-run')
+  const db = createDb(getEnv().databaseUrl)
+  try {
+    return await getActiveSyncRun({ db })
+  } finally {
+    await db.$client.end({ timeout: 5 })
+  }
+})
+
 export const getSyncErrorsSourceData = createServerFn({ method: 'GET' }).handler(async () => {
   const { createDb } = await import('~/db/client')
   const { getEnv } = await import('~/config/env')
