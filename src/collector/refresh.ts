@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { and, eq, max } from 'drizzle-orm'
+import { and, eq, max, sql } from 'drizzle-orm'
 
 import { GitHubClient } from '~/collector/github-client'
 import { discoverRepositories } from '~/collector/repo-discovery'
@@ -13,6 +13,31 @@ import { getEnv } from '~/config/env'
 import { loadTeamMapping } from '~/config/team-mapping'
 import { createDb } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
+
+export class AlreadyRunningError extends Error {
+  override name = 'AlreadyRunningError'
+  readonly startedAt: Date
+  readonly elapsedSeconds: number
+
+  constructor(startedAt: Date) {
+    const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000)
+    super(`A refresh is already running (started ${elapsedSeconds}s ago, status: running). Aborting.`)
+    this.startedAt = startedAt
+    this.elapsedSeconds = elapsedSeconds
+  }
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const cause = (err as { cause?: unknown }).cause
+  if (typeof cause === 'object' && cause !== null && 'code' in cause) {
+    return String((cause as { code: unknown }).code) === '23505'
+  }
+  return 'code' in err && String((err as { code: unknown }).code) === '23505'
+}
+
+const HEARTBEAT_INTERVAL_MS = 10_000
+const ZOMBIE_TTL_SECONDS = 120
 
 export type RefreshSummary = {
   reposScanned: number
@@ -72,7 +97,7 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
  * Scans local repositories, upserts metadata, syncs GitHub PRs for `ready`
  * repositories, and records sync run / error rows.
  */
-export async function refreshLocalData(input?: Partial<AppEnv>): Promise<RefreshSummary> {
+export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbeatIntervalMs?: number }): Promise<RefreshSummary> {
   const mergedEnv = buildProcessEnvFromPartial(input)
   const env = getEnv(mergedEnv)
   const db = createDb(env.databaseUrl)
@@ -123,6 +148,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
   }
 
   let syncRunId: string | null = null
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
 
   const insertError = async (repositoryId: string | null, source: string, message: string) => {
     if (syncRunId === null) return
@@ -135,22 +161,52 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
   }
 
   try {
+    // Expire any zombie running rows (heartbeat stale or missing + old startedAt)
+    await db
+      .update(syncRuns)
+      .set({ status: 'failed', finishedAt: new Date(), message: 'zombie_expired' })
+      .where(
+        and(
+          eq(syncRuns.kind, 'collector_refresh'),
+          eq(syncRuns.status, 'running'),
+          sql`(${syncRuns.heartbeat} < now() - interval '120 seconds' OR (${syncRuns.heartbeat} IS NULL AND ${syncRuns.startedAt} < now() - interval '120 seconds'))`,
+        ),
+      )
+
+    // Claim the single-flight slot — unique partial index rejects a second running row
+    const startedAt = new Date()
+    const newRunId = randomUUID()
+    try {
+      await db.insert(syncRuns).values({
+        id: newRunId,
+        kind: 'collector_refresh',
+        status: 'running',
+        startedAt,
+        finishedAt: null,
+        message: null,
+        errorCount: 0,
+      })
+    } catch (claimErr) {
+      if (isUniqueViolation(claimErr)) {
+        const [existing] = await db
+          .select({ startedAt: syncRuns.startedAt })
+          .from(syncRuns)
+          .where(and(eq(syncRuns.kind, 'collector_refresh'), eq(syncRuns.status, 'running')))
+        throw new AlreadyRunningError(existing?.startedAt ?? startedAt)
+      }
+      throw claimErr
+    }
+    syncRunId = newRunId
+
+    // Keep heartbeat alive so we are not mistaken for a zombie
+    const intervalMs = opts?.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS
+    heartbeatTimer = setInterval(() => {
+      db.update(syncRuns).set({ heartbeat: new Date() }).where(eq(syncRuns.id, syncRunId!)).catch(() => {})
+    }, intervalMs)
+
     const mapping = await loadTeamMapping(env.teamMappingPath)
     const repoRoot = path.resolve(env.repoRoot)
     const candidates = await discoverRepositories(repoRoot)
-
-    const startedAt = new Date()
-    const newRunId = randomUUID()
-    await db.insert(syncRuns).values({
-      id: newRunId,
-      kind: 'collector_refresh',
-      status: 'running',
-      startedAt,
-      finishedAt: null,
-      message: null,
-      errorCount: 0,
-    })
-    syncRunId = newRunId
 
     const repoSync = await upsertRepositories(db, repoRoot, candidates, mapping, env.githubSyncOwner)
 
@@ -294,6 +350,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
     summary.status = runStatus
     return summary
   } catch (err) {
+    if (err instanceof AlreadyRunningError) throw err
     const msg = err instanceof Error ? err.message : String(err)
     if (syncRunId !== null) {
       await insertError(null, 'refresh_orchestration', msg)
@@ -312,6 +369,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
     summary.status = 'failed'
     return summary
   } finally {
+    if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
     await db.$client.end({ timeout: 5 })
   }
 }

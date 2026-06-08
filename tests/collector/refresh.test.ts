@@ -373,6 +373,66 @@ describe('refresh', () => {
     }
   })
 
+  it('refresh_last_pr_synced_at_never_decreases', async () => {
+    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'refresh-hwm-'))
+    const mappingPath = await writeMapping(root)
+    try {
+      const repoPath = await initGitRepoWithOrigin(root, 'hwm', 'https://github.com/gde-mit/hwm.git')
+      const tHigh = new Date('2024-06-01T00:00:00.000Z')
+      const tLow = new Date('2024-04-01T00:00:00.000Z') // older than tHigh
+
+      // First run: establishes lastPrSyncedAt = tHigh
+      listSpy.mockResolvedValueOnce([
+        {
+          githubNodeId: 'h1',
+          number: 1,
+          title: 'K-1',
+          state: 'closed' as const,
+          isDraft: false,
+          openedAt: new Date('2024-05-01T00:00:00.000Z'),
+          updatedAt: tHigh,
+          mergedAt: new Date('2024-05-15T00:00:00.000Z'),
+          mergeCommitSha: null,
+          url: 'https://github.com/gde-mit/hwm/pull/1',
+        },
+      ])
+      await refreshLocalData({
+        databaseUrl: databaseUrl!,
+        repoRoot: root,
+        teamMappingPath: mappingPath,
+        githubSyncOwner: 'gde-mit',
+      })
+
+      // Second run: mock returns a PR with an older updatedAt (simulates edge case)
+      listSpy.mockResolvedValueOnce([
+        {
+          githubNodeId: 'h2',
+          number: 2,
+          title: 'K-2',
+          state: 'closed' as const,
+          isDraft: false,
+          openedAt: new Date('2024-03-01T00:00:00.000Z'),
+          updatedAt: tLow,
+          mergedAt: new Date('2024-03-15T00:00:00.000Z'),
+          mergeCommitSha: null,
+          url: 'https://github.com/gde-mit/hwm/pull/2',
+        },
+      ])
+      await refreshLocalData({
+        databaseUrl: databaseUrl!,
+        repoRoot: root,
+        teamMappingPath: mappingPath,
+        githubSyncOwner: 'gde-mit',
+      })
+
+      const [row] = await db.select().from(repositories).where(eq(repositories.path, repoPath))
+      // Advance-only: lastPrSyncedAt must not decrease below tHigh
+      expect(row?.lastPrSyncedAt?.getTime()).toBeGreaterThanOrEqual(tHigh.getTime())
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   it('refresh_records_remote_identity_change_warning', async () => {
     const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'refresh-id-'))
     const mappingPath = await writeMapping(root)
