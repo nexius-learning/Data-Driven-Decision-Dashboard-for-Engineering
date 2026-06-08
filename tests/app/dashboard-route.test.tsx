@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router'
 
 import type { PrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
+import { getDashboardData } from '../../src/server/dashboard-functions'
 import { routeTree } from '../../src/routeTree.gen'
 
 const mockDashboard: PrCycleTimeDashboard = {
@@ -73,6 +74,55 @@ describe('dashboard route', () => {
     useServerFnMock.mockImplementation((_fn: unknown) => {
       void _fn
       return () => Promise.resolve({ ok: true, summary: refreshSummary })
+    })
+  })
+
+  it('team_param_is_passed_to_getDashboardData', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/?team=Frontend'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(vi.mocked(getDashboardData)).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ team: 'Frontend' }) }),
+      )
+    })
+  })
+
+  it('no_team_param_calls_getDashboardData_without_team', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(vi.mocked(getDashboardData)).not.toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ team: expect.any(String) }) }),
+      )
+    })
+  })
+
+  it('team_and_weeks_params_are_both_passed_to_getDashboardData', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/?team=Backend&weeks=4'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(vi.mocked(getDashboardData)).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ team: 'Backend', weeks: 4 }),
+        }),
+      )
+    })
+  })
+
+  it('unknown_team_param_renders_dashboard_without_error', async () => {
+    const history = createMemoryHistory({ initialEntries: ['/?team=NonExistent'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      expect(screen.queryByRole('alert')).toBeNull()
+      expect(screen.getByTestId('median-pr-cycle-time')).toBeInTheDocument()
     })
   })
 
