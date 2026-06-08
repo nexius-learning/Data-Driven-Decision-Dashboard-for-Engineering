@@ -20,6 +20,7 @@ The current product direction is documented under `Documentation/`:
 
 ## Working Rules
 
+- Before starting the dev server or Docker stack, verify prerequisites in `Documentation/Development/README.md` (missing files cause startup errors).
 - Be direct, extremely precise, and very concise.
 - Keep the MVP small and incremental.
 - Show only metrics whose data is collected, stored, and computed.
