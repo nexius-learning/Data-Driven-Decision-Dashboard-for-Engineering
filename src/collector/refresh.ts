@@ -269,10 +269,13 @@ export async function refreshLocalData(input?: Partial<AppEnv>, opts?: { heartbe
 
         const maxUpdated = maxRow?.m ?? null
         if (maxUpdated !== null) {
-          await db
-            .update(repositories)
-            .set({ lastPrSyncedAt: maxUpdated, updatedAt: new Date() })
-            .where(eq(repositories.id, repo.id))
+          const maxUpdatedIso = maxUpdated.toISOString()
+          await db.execute(
+            sql`UPDATE repositories
+                SET last_pr_synced_at = GREATEST(COALESCE(last_pr_synced_at, ${maxUpdatedIso}::timestamptz), ${maxUpdatedIso}::timestamptz),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${repo.id}`,
+          )
         }
 
         prSyncSuccesses += 1
