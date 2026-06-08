@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { RouterProvider, createMemoryHistory, createRouter } from '@tanstack/react-router'
 
@@ -146,6 +146,64 @@ describe('dashboard route', () => {
     screen.getByRole('button', { name: 'Refresh' }).click()
     await waitFor(() => {
       expect(invalidate).toHaveBeenCalled()
+    })
+  })
+
+  it('team_filter_dropdown_shows_active_team_from_url', async () => {
+    vi.mocked(getDashboardData).mockImplementationOnce(async () => ({
+      ...mockDashboard,
+      teamBreakdown: [
+        { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+      ],
+    }))
+    const history = createMemoryHistory({ initialEntries: ['/?team=Frontend'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await waitFor(() => {
+      const select = screen.getByRole('combobox', { name: 'Filter by team' }) as HTMLSelectElement
+      expect(select.value).toBe('Frontend')
+    })
+  })
+
+  it('team_filter_dropdown_navigates_to_team_url_on_selection', async () => {
+    const frontendDashboard = {
+      ...mockDashboard,
+      teamBreakdown: [
+        { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+      ],
+    }
+    vi.mocked(getDashboardData).mockResolvedValue(frontendDashboard as typeof mockDashboard)
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await screen.findByRole('combobox', { name: 'Filter by team' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by team' }), { target: { value: 'Frontend' } })
+    await waitFor(() => {
+      expect(vi.mocked(getDashboardData)).toHaveBeenCalledWith(
+        expect.objectContaining({ data: expect.objectContaining({ team: 'Frontend' }) }),
+      )
+    })
+  })
+
+  it('team_filter_dropdown_clears_team_param_when_all_teams_selected', async () => {
+    vi.mocked(getDashboardData).mockImplementationOnce(async () => ({
+      ...mockDashboard,
+      teamBreakdown: [
+        { team: 'Frontend', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+      ],
+    }))
+    const history = createMemoryHistory({ initialEntries: ['/?team=Frontend'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await screen.findByRole('combobox', { name: 'Filter by team' })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by team' }), { target: { value: '' } })
+    await waitFor(() => {
+      const lastCall = vi.mocked(getDashboardData).mock.lastCall?.[0] as { data?: { team?: string } } | undefined
+      expect(lastCall?.data?.team).toBeUndefined()
+      expect(vi.mocked(getDashboardData).mock.calls.length).toBeGreaterThan(1)
     })
   })
 

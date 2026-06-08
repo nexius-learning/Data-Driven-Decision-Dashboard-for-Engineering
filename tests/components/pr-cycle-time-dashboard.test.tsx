@@ -597,4 +597,99 @@ describe.sequential('PrCycleTimeDashboard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Refresh' }))
     expect(onRefresh).toHaveBeenCalled()
   })
+
+  it('team_filter_dropdown_is_visible_in_toolbar', () => {
+    render(<PrCycleTimeDashboard data={baseDashboard()} />)
+    expect(screen.getByRole('combobox', { name: 'Filter by team' })).toBeInTheDocument()
+  })
+
+  it('team_filter_calls_onTeamSelect_with_team_name_when_team_selected', () => {
+    const onTeamSelect = vi.fn()
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          teamBreakdown: [
+            { team: 'Alpha', mergedPrs: 4, medianHours: 36, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+        onTeamSelect={onTeamSelect}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by team' }), { target: { value: 'Alpha' } })
+    expect(onTeamSelect).toHaveBeenCalledWith('Alpha')
+  })
+
+  it('team_filter_calls_onTeamSelect_with_undefined_when_all_teams_selected', () => {
+    const onTeamSelect = vi.fn()
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          teamBreakdown: [
+            { team: 'Alpha', mergedPrs: 4, medianHours: 36, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+        activeTeam="Alpha"
+        onTeamSelect={onTeamSelect}
+      />,
+    )
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filter by team' }), { target: { value: '' } })
+    expect(onTeamSelect).toHaveBeenCalledWith(undefined)
+  })
+
+  it('team_filter_unassigned_appears_last', () => {
+    // teamBreakdown arrives pre-sorted by compareTeamLabels (Alpha < Zeta < Unassigned)
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          teamBreakdown: [
+            { team: 'Alpha', mergedPrs: 3, medianHours: 8, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+            { team: 'Zeta', mergedPrs: 2, medianHours: 12, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+            { team: 'Unassigned', mergedPrs: 1, medianHours: 5, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+      />,
+    )
+    const select = screen.getByRole('combobox', { name: 'Filter by team' })
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
+    expect(options[options.length - 1]).toBe('Unassigned')
+  })
+
+  it('team_filter_shows_active_team_as_selected', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          teamBreakdown: [
+            { team: 'Alpha', mergedPrs: 4, medianHours: 36, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+        activeTeam="Alpha"
+      />,
+    )
+    const select = screen.getByRole('combobox', { name: 'Filter by team' }) as HTMLSelectElement
+    expect(select.value).toBe('Alpha')
+  })
+
+  it('team_filter_shows_all_teams_when_no_active_team', () => {
+    render(<PrCycleTimeDashboard data={baseDashboard()} />)
+    const select = screen.getByRole('combobox', { name: 'Filter by team' }) as HTMLSelectElement
+    expect(select.value).toBe('')
+  })
+
+  it('team_filter_lists_all_teams_first_then_breakdown_teams', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          teamBreakdown: [
+            { team: 'Beta', mergedPrs: 2, medianHours: 10, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+            { team: 'Alpha', mergedPrs: 3, medianHours: 8, previousMedianHours: null, trendPercent: null, longestOpenPrHours: null },
+          ],
+        })}
+      />,
+    )
+    const select = screen.getByRole('combobox', { name: 'Filter by team' })
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
+    expect(options[0]).toBe('All Teams')
+    expect(options).toContain('Beta')
+    expect(options).toContain('Alpha')
+  })
 })

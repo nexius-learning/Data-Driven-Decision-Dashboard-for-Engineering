@@ -9,6 +9,7 @@ const homeRoute = getRouteApi('/')
 
 export function HomePage() {
   const data = homeRoute.useLoaderData()
+  const { team: activeTeam, weeks } = homeRoute.useSearch()
   const router = useRouter()
   const refreshFn = useServerFn(refreshLocalDataFn)
   const [refreshing, setRefreshing] = useState(false)
@@ -29,6 +30,10 @@ export function HomePage() {
     }
   }
 
+  const onTeamSelect = (newTeam: string | undefined) => {
+    void router.navigate({ to: '/', search: { team: newTeam, weeks } })
+  }
+
   return (
     <main>
       <PrCycleTimeDashboard
@@ -36,6 +41,8 @@ export function HomePage() {
         onRefresh={onRefresh}
         refreshing={refreshing}
         refreshError={refreshError}
+        activeTeam={activeTeam}
+        onTeamSelect={onTeamSelect}
       />
     </main>
   )

@@ -26,6 +26,8 @@ export type PrCycleTimeDashboardProps = {
   onRefresh?: () => void | Promise<void>
   refreshing?: boolean
   refreshError?: string | null
+  activeTeam?: string
+  onTeamSelect?: (team: string | undefined) => void
 }
 
 function formatTrendPercent(value: number | null): string {
@@ -185,6 +187,8 @@ export function PrCycleTimeDashboard({
   onRefresh,
   refreshing = false,
   refreshError = null,
+  activeTeam,
+  onTeamSelect,
 }: PrCycleTimeDashboardProps) {
   const nowMs = Date.now()
   const noRepos = data.freshness.reposScanned === 0
@@ -234,6 +238,19 @@ export function PrCycleTimeDashboard({
             </div>
             <div className="pr-dashboard__header-right">
               <div className="pr-dashboard__toolbar">
+                <select
+                  aria-label="Filter by team"
+                  className="pr-dashboard__pill pr-dashboard__team-select"
+                  value={activeTeam ?? ''}
+                  onChange={(e) => onTeamSelect?.(e.target.value || undefined)}
+                >
+                  <option value="">All Teams</option>
+                  {data.teamBreakdown.map((t) => (
+                    <option key={t.team} value={t.team}>
+                      {t.team}
+                    </option>
+                  ))}
+                </select>
                 <span className="pr-dashboard__pill" aria-current="date">
                   <IconCalendar className="pr-dashboard__pill-icon" />
                   Last {data.range.weeks} weeks
