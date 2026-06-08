@@ -9,6 +9,7 @@ type Props = {
   activeTeam?: string
 }
 
+/** Renders the First Review Time section, or nothing when firstReview data is absent. */
 export function FirstReviewSection({ firstReview, activeTeam }: Props) {
   if (firstReview === undefined) return null
   return (

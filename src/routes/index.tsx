@@ -5,7 +5,7 @@ import { getDashboardData } from '~/server/dashboard-functions'
 
 export const Route = createFileRoute('/')({
   validateSearch: (search: Record<string, unknown>) => ({
-    team: typeof search.team === 'string' ? search.team : undefined,
+    team: typeof search.team === 'string' && search.team.trim().length > 0 ? search.team : undefined,
     weeks: typeof search.weeks === 'number' ? search.weeks : undefined,
   }),
   loaderDeps: ({ search: { team, weeks } }) => ({ team, weeks }),

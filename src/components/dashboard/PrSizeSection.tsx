@@ -9,6 +9,7 @@ type Props = {
   activeTeam?: string
 }
 
+/** Renders the PR Size section, or nothing when prSize data is absent. */
 export function PrSizeSection({ prSize, activeTeam }: Props) {
   if (prSize === undefined) return null
   return (

@@ -9,10 +9,12 @@ type Props = {
   activeTeam?: string
 }
 
+/** Formats a nullable hours value as a human-readable duration or "—". */
 function fmtHours(h: number | null): string {
   return h === null ? '—' : formatCycleDuration(h)
 }
 
+/** Renders a table of per-team first review time metrics with trend indicators. */
 export function FirstReviewTeamTable({ rows, activeTeam }: Props) {
   return (
     <section className="pr-dashboard__card" data-testid="first-review-team-table" aria-label="Review team breakdown">
@@ -65,10 +67,12 @@ export function FirstReviewTeamTable({ rows, activeTeam }: Props) {
   )
 }
 
+/** Returns the largest positive trend percentage across the given team rows. */
 function maxPositiveTeamTrend(rows: FirstReviewTeamRow[]): number {
   return rows.reduce((max, row) => Math.max(max, row.trendPercent && row.trendPercent > 0 ? row.trendPercent : 0), 0)
 }
 
+/** Returns the CSS class for the team status dot based on trend direction and relative magnitude. */
 function teamDotClass(row: FirstReviewTeamRow, rows: FirstReviewTeamRow[]): string {
   const maxPos = maxPositiveTeamTrend(rows)
   if (row.trendPercent != null && row.trendPercent > 0) {
@@ -82,6 +86,7 @@ function teamDotClass(row: FirstReviewTeamRow, rows: FirstReviewTeamRow[]): stri
   return 'pr-dashboard__team-dot pr-dashboard__team-dot--muted'
 }
 
+/** Returns the CSS class for the median cell based on trend direction. */
 function medianCellClass(row: FirstReviewTeamRow, rows: FirstReviewTeamRow[]): string {
   const maxPos = maxPositiveTeamTrend(rows)
   if (row.medianHours == null) return 'pr-dashboard__num'
@@ -92,6 +97,7 @@ function medianCellClass(row: FirstReviewTeamRow, rows: FirstReviewTeamRow[]): s
   return 'pr-dashboard__num'
 }
 
+/** Formats a no-review merge count as a labelled string, or "—" when null. */
 function formatNoReviewMerges(n: number | null): string {
   if (n === null) return '—'
   return `${n} no-review merge${n === 1 ? '' : 's'}`

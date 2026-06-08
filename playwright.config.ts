@@ -30,7 +30,7 @@ export default defineConfig({
   webServer: {
     command: 'bash scripts/e2e-web-server.sh',
     cwd: repoRoot,
-    url: 'http://127.0.0.1:3100',
+    url: `http://127.0.0.1:${process.env.DASHBOARD_E2E_PORT}`,
     reuseExistingServer: !!process.env.E2E_REUSE_SERVER,
     timeout: 120_000,
     stdout: 'pipe',
@@ -41,7 +41,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        baseURL: 'http://127.0.0.1:3100',
+        baseURL: `http://127.0.0.1:${process.env.DASHBOARD_E2E_PORT}`,
         trace: 'on-first-retry',
       },
     },

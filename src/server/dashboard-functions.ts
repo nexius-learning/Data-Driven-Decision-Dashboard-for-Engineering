@@ -2,6 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { RefreshSummary } from '~/collector/refresh'
 
+/** Validates and normalises raw loader input into typed dashboard query params. */
 export function parseDashboardWeeksInput(raw: unknown): { weeks?: number; team?: string } {
   if (raw === undefined || raw === null) {
     return {}
@@ -21,6 +22,9 @@ export function parseDashboardWeeksInput(raw: unknown): { weeks?: number; team?:
     if (typeof data.team !== 'string') {
       throw new Error('team must be a string')
     }
+    if (data.team.trim().length === 0) {
+      throw new Error('team must be a non-empty string')
+    }
     result.team = data.team
   }
   return result
@@ -28,6 +32,7 @@ export function parseDashboardWeeksInput(raw: unknown): { weeks?: number; team?:
 
 export type { PrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
 
+/** Server function that loads the full dashboard payload for the given weeks and optional team filter. */
 export const getDashboardData = createServerFn({ method: 'GET' })
   .inputValidator((raw: unknown) => parseDashboardWeeksInput(raw ?? {}))
   .handler(async ({ data }) => {
@@ -39,6 +44,7 @@ export type RefreshLocalDataResult =
   | { ok: true; summary: RefreshSummary }
   | { ok: false; message: string }
 
+/** Server function that triggers a local data refresh and returns the outcome. */
 export const refreshLocalDataFn = createServerFn({ method: 'POST' }).handler(
   async (): Promise<RefreshLocalDataResult> => {
     try {

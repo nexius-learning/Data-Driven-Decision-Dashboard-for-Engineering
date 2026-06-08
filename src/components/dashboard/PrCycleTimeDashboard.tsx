@@ -30,6 +30,7 @@ export type PrCycleTimeDashboardProps = {
   onTeamSelect?: (team: string | undefined) => void
 }
 
+/** Formats a trend percentage with a sign prefix, or "—" when the value is absent. */
 function formatTrendPercent(value: number | null): string {
   if (value === null || Number.isNaN(value)) {
     return '—'
@@ -38,6 +39,7 @@ function formatTrendPercent(value: number | null): string {
   return `${sign}${value.toFixed(0)}%`
 }
 
+/** Selects hours or days as the display unit based on the maximum median in the trend series. */
 function selectedDurationUnitForTrend(weeklyTrend: Array<{ medianHours: number | null }>) {
   const values = weeklyTrend
     .map((p) => p.medianHours)
@@ -45,6 +47,7 @@ function selectedDurationUnitForTrend(weeklyTrend: Array<{ medianHours: number |
   return selectDurationUnit(values.length > 0 ? Math.max(...values) : null)
 }
 
+/** Formats a duration in hours for use in exception descriptions. */
 function formatExceptionHours(hours: number | null | undefined): string {
   if (hours == null || Number.isNaN(hours)) {
     return '—'
@@ -55,6 +58,7 @@ function formatExceptionHours(hours: number | null | undefined): string {
   return `${(Math.round(hours * 10) / 10).toString()}h`
 }
 
+/** Returns a human-relative label ("just now", "5 min ago", etc.) for an ISO timestamp. */
 function formatSyncedAgo(iso: string | null, nowMs: number): string {
   if (!iso) return 'never'
   const t = new Date(iso).getTime()
@@ -70,6 +74,7 @@ function formatSyncedAgo(iso: string | null, nowMs: number): string {
 
 type TeamRow = DashboardModel['teamBreakdown'][number]
 
+/** Returns the highest worsening trend percent among all team breakdown rows. */
 function maxPositiveTeamTrend(teams: TeamRow[]): number {
   let m = 0
   for (const r of teams) {
@@ -80,6 +85,7 @@ function maxPositiveTeamTrend(teams: TeamRow[]): number {
   return m
 }
 
+/** Returns the CSS class for a team status dot based on trend direction and worst-team flag. */
 function teamDotClass(row: TeamRow, teams: TeamRow[]): string {
   const maxPos = maxPositiveTeamTrend(teams)
   if (row.trendPercent == null && row.mergedPrs > 0) {
@@ -97,6 +103,7 @@ function teamDotClass(row: TeamRow, teams: TeamRow[]): string {
   return 'pr-dashboard__team-dot pr-dashboard__team-dot--muted'
 }
 
+/** Returns the CSS class for the median cell based on trend direction and worst-team status. */
 function medianCellClass(row: TeamRow, teams: TeamRow[]): string {
   if (row.medianHours == null) return 'pr-dashboard__num'
   const maxPos = maxPositiveTeamTrend(teams)
@@ -109,6 +116,7 @@ function medianCellClass(row: TeamRow, teams: TeamRow[]): string {
   return 'pr-dashboard__num'
 }
 
+/** Renders a TrendComparison cell for a team breakdown row. */
 function trendCell(row: TeamRow): ReactNode {
   return (
     <TrendComparison
@@ -119,6 +127,7 @@ function trendCell(row: TeamRow): ReactNode {
   )
 }
 
+/** Returns a short display title for a PR cycle time exception. */
 function exceptionTitle(e: PrCycleTimeException): string {
   switch (e.type) {
     case 'team_worsened':
@@ -132,6 +141,7 @@ function exceptionTitle(e: PrCycleTimeException): string {
   }
 }
 
+/** Returns a metric snippet string for a PR cycle time exception. */
 function exceptionMetric(e: PrCycleTimeException, teams: TeamRow[]): string {
   switch (e.type) {
     case 'team_worsened': {
@@ -152,6 +162,7 @@ function exceptionMetric(e: PrCycleTimeException, teams: TeamRow[]): string {
   }
 }
 
+/** Returns an actionable recommendation string for a PR cycle time exception. */
 function exceptionRecommendation(e: PrCycleTimeException): string {
   switch (e.type) {
     case 'team_worsened':
@@ -168,6 +179,7 @@ function exceptionRecommendation(e: PrCycleTimeException): string {
   }
 }
 
+/** Renders a coloured trend indicator badge for team_worsened exceptions. */
 function exceptionTrendSnippet(e: PrCycleTimeException, teams: TeamRow[]): ReactNode {
   if (e.type !== 'team_worsened') return null
   const tr = teams.find((x) => x.team === e.team)?.trendPercent
@@ -182,6 +194,7 @@ function exceptionTrendSnippet(e: PrCycleTimeException, teams: TeamRow[]): React
   )
 }
 
+/** Top-level dashboard component rendering all metric sections, the team-filter toolbar, and the freshness footer. */
 export function PrCycleTimeDashboard({
   data,
   onRefresh,

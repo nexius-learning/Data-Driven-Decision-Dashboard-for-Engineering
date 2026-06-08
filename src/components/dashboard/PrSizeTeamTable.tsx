@@ -8,21 +8,25 @@ type Props = {
   activeTeam?: string
 }
 
+/** Formats a nullable changed-lines count as "N lines" or "—". */
 function formatMedianLines(lines: number | null): string {
   if (lines === null) return '—'
   return `${lines} lines`
 }
 
+/** Formats a nullable changed-files count as a string or "—". */
 function formatMedianFiles(files: number | null): string {
   if (files === null) return '—'
   return String(files)
 }
 
+/** Formats a nullable previous-period lines value for the trend tooltip. */
 function formatPreviousMedianLines(lines: number | null): string {
   if (lines === null) return '—'
   return `${lines} lines`
 }
 
+/** Renders a table of per-team PR size metrics with trend indicators. */
 export function PrSizeTeamTable({ rows, activeTeam }: Props) {
   return (
     <section
@@ -80,6 +84,7 @@ export function PrSizeTeamTable({ rows, activeTeam }: Props) {
   )
 }
 
+/** Returns the largest positive size trend percentage across the given team rows. */
 function maxPositiveTeamTrend(rows: PrSizeTeamRow[]): number {
   return rows.reduce(
     (max, row) => Math.max(max, row.trendPercent && row.trendPercent > 0 ? row.trendPercent : 0),
@@ -87,6 +92,7 @@ function maxPositiveTeamTrend(rows: PrSizeTeamRow[]): number {
   )
 }
 
+/** Returns the CSS class for the team status dot based on size trend direction and relative magnitude. */
 function teamDotClass(row: PrSizeTeamRow, rows: PrSizeTeamRow[]): string {
   const maxPos = maxPositiveTeamTrend(rows)
   if (row.trendPercent != null && row.trendPercent > 0) {
@@ -100,6 +106,7 @@ function teamDotClass(row: PrSizeTeamRow, rows: PrSizeTeamRow[]): string {
   return 'pr-dashboard__team-dot pr-dashboard__team-dot--muted'
 }
 
+/** Returns the CSS class for the median size cell based on trend direction. */
 function medianCellClass(row: PrSizeTeamRow, rows: PrSizeTeamRow[]): string {
   const maxPos = maxPositiveTeamTrend(rows)
   if (row.medianLines == null) return 'pr-dashboard__num'

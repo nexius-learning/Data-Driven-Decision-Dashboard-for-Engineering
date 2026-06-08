@@ -30,7 +30,6 @@ function fr(overrides: Partial<FirstReview> = {}): FirstReview {
       medianHours: null,
     })),
     comparisonWeeklyTrend: [],
-    allTeams: [],
     teamBreakdown: [],
     ...overrides,
   }

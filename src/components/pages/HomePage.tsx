@@ -7,6 +7,7 @@ import { refreshLocalDataFn } from '~/server/dashboard-functions'
 
 const homeRoute = getRouteApi('/')
 
+/** Root page component connecting route loader data, refresh, and team-filter navigation to the dashboard UI. */
 export function HomePage() {
   const data = homeRoute.useLoaderData()
   const { team: activeTeam, weeks } = homeRoute.useSearch()

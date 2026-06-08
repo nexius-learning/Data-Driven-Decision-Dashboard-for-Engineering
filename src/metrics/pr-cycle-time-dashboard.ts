@@ -199,20 +199,24 @@ const MS_PER_HOUR = 1000 * 60 * 60
 export const DASHBOARD_UNASSIGNED_TEAM = 'Unassigned'
 export const PR_SIZE_COMPLETED_TREND_WEEKS = 16
 
+/** Sorts team labels alphabetically, pinning "Unassigned" to the end. */
 function compareTeamLabels(a: string, b: string): number {
   if (a === DASHBOARD_UNASSIGNED_TEAM && b !== DASHBOARD_UNASSIGNED_TEAM) return 1
   if (b === DASHBOARD_UNASSIGNED_TEAM && a !== DASHBOARD_UNASSIGNED_TEAM) return -1
   return a.localeCompare(b)
 }
 
+/** Returns true when the repository is active and its scan has completed. */
 function isMetricsRepository(repo: typeof repositories.$inferSelect): boolean {
   return repo.active && repo.scanStatus === 'ready'
 }
 
+/** Returns the repo's team label, falling back to DASHBOARD_UNASSIGNED_TEAM when blank. */
 function repoTeamLabel(repo: typeof repositories.$inferSelect): string {
   return repo.team?.trim() ? repo.team : DASHBOARD_UNASSIGNED_TEAM
 }
 
+/** Casts a raw DB pull request row to a typed PullRequestRecord. */
 function rowToPr(row: typeof pullRequests.$inferSelect): PullRequestRecord {
   return {
     ...row,
@@ -220,43 +224,51 @@ function rowToPr(row: typeof pullRequests.$inferSelect): PullRequestRecord {
   }
 }
 
+/** Returns true when the PR was merged within the current reporting window. */
 function mergedInCurrent(pr: PullRequestRecord, from: Date, to: Date): boolean {
   if (pr.mergedAt == null) return false
   const m = pr.mergedAt.getTime()
   return m >= from.getTime() && m <= to.getTime()
 }
 
+/** Returns true when the PR was merged in the previous comparison period. */
 function mergedInPrevious(pr: PullRequestRecord, previousFrom: Date, currentFrom: Date): boolean {
   if (pr.mergedAt == null) return false
   const m = pr.mergedAt.getTime()
   return m >= previousFrom.getTime() && m < currentFrom.getTime()
 }
 
+/** Returns true when the size record was merged within the current reporting window. */
 function mergedInCurrentSize(p: PrSizeRecord, from: Date, to: Date): boolean {
   const m = p.mergedAt.getTime()
   return m >= from.getTime() && m <= to.getTime()
 }
 
+/** Returns true when the size record falls in the previous comparison window. */
 function mergedInPreviousSize(p: PrSizeRecord, previousFrom: Date, currentFrom: Date): boolean {
   const m = p.mergedAt.getTime()
   return m >= previousFrom.getTime() && m < currentFrom.getTime()
 }
 
+/** Returns true when the item was merged at or before the reference time. */
 function mergedNoLaterThan(p: { mergedAt: Date }, now: Date): boolean {
   return p.mergedAt.getTime() <= now.getTime()
 }
 
+/** Extracts cycle time in hours from a merged PR, returning null when unavailable. */
 function cycleHoursForMerged(pr: PullRequestRecord): number | null {
   const c = calculatePrCycleTime(pr)
   return c?.cycleTimeHours ?? null
 }
 
+/** Serialises a Date to an ISO 8601 string. */
 function formatIso(d: Date): string {
   return d.toISOString()
 }
 
 type TeamBreakdownRow = PrCycleTimeDashboard['teamBreakdown'][number]
 
+/** Sorts cycle time exceptions in-place by severity, then by worsening magnitude. */
 function sortExceptions(exceptions: PrCycleTimeException[], teamBreakdown: TeamBreakdownRow[]): void {
   sortExceptionsBySeverityThenMagnitude(exceptions, (e) => {
     if (e.type !== 'team_worsened') return null
@@ -265,6 +277,7 @@ function sortExceptions(exceptions: PrCycleTimeException[], teamBreakdown: TeamB
   })
 }
 
+/** Computes the full dashboard payload from the database for the given period and optional team filter. */
 export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput): Promise<PrCycleTimeDashboard> {
   const env = getEnv()
   const now = input.now ?? new Date()
@@ -735,6 +748,7 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
   }
 }
 
+/** Renders the human-readable message for a first-review exception type and team. */
 function formatFirstReviewMessage(e: { type: string; team: string }): string {
   if (e.type === 'review_latency_worsened') {
     return `${e.team} first review median worsened by at least 25% versus the previous period.`

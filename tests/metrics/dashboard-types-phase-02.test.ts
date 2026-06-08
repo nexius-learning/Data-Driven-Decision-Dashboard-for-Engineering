@@ -91,7 +91,6 @@ describe('phase 02 payload types', () => {
       exceptions: [],
       weeklyTrend: [],
       comparisonWeeklyTrend: [point],
-      allTeams: [],
     teamBreakdown: [],
     }
     expectTypeOf(firstReview.comparisonWeeklyTrend).toEqualTypeOf<FirstReviewComparisonPoint[]>()

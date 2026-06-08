@@ -5,18 +5,22 @@ type Props = {
   exceptions: PrSizeException[]
 }
 
+/** Returns the display title for a PR size exception. */
 function title(e: PrSizeException): string {
   return `${e.team} oversized PRs`
 }
 
+/** Returns the metric snippet for a PR size exception. */
 function metric(e: PrSizeException): string {
   return `${e.flaggedPrCount} PR${e.flaggedPrCount === 1 ? '' : 's'} above team median`
 }
 
+/** Returns the static recommendation text for oversized PR exceptions. */
 function recommendation(): string {
   return 'Split large work before review starts'
 }
 
+/** Renders a panel listing teams with oversized PR patterns, or an empty state when none are flagged. */
 export function PrSizeExceptionsPanel({ exceptions }: Props) {
   return (
     <section
