@@ -50,6 +50,7 @@ export type PrCycleTimeDashboardInput = {
   db: AppDb
   weeks?: number
   now?: Date
+  team?: string
 }
 
 export type PrCycleTimeException = {
@@ -276,7 +277,12 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     .where(eq(repositories.rootPath, env.repoRoot))
 
   const reposScanned = allRepos.filter((r) => r.scanStatus !== 'missing').length
-  const metricsRepos = allRepos.filter(isMetricsRepository)
+  const allMetricsRepos = allRepos.filter(isMetricsRepository)
+  const teamFilteredRepos =
+    input.team !== undefined
+      ? allMetricsRepos.filter((r) => repoTeamLabel(r) === input.team)
+      : allMetricsRepos
+  const metricsRepos = teamFilteredRepos.length > 0 ? teamFilteredRepos : allMetricsRepos
   const metricsRepoIds = metricsRepos.map((r) => r.id)
 
   const prRows =

@@ -32,6 +32,16 @@ describe('parseDashboardWeeksInput', () => {
     expect(parseDashboardWeeksInput({})).toEqual({})
     expect(parseDashboardWeeksInput({ weeks: 4 })).toEqual({ weeks: 4 })
   })
+
+  it('accepts_team_string', () => {
+    expect(parseDashboardWeeksInput({ team: 'Alpha' })).toEqual({ team: 'Alpha' })
+    expect(parseDashboardWeeksInput({ weeks: 4, team: 'Beta' })).toEqual({ weeks: 4, team: 'Beta' })
+  })
+
+  it('rejects_non_string_team', () => {
+    expect(() => parseDashboardWeeksInput({ team: 42 })).toThrow(/team must be a string/)
+    expect(() => parseDashboardWeeksInput({ team: true })).toThrow(/team must be a string/)
+  })
 })
 
 const databaseUrl = process.env.DATABASE_URL?.trim()

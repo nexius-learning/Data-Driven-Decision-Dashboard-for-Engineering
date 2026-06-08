@@ -2,21 +2,28 @@ import { createServerFn } from '@tanstack/react-start'
 
 import type { RefreshSummary } from '~/collector/refresh'
 
-export function parseDashboardWeeksInput(raw: unknown): { weeks?: number } {
+export function parseDashboardWeeksInput(raw: unknown): { weeks?: number; team?: string } {
   if (raw === undefined || raw === null) {
     return {}
   }
   if (typeof raw !== 'object') {
     throw new Error('Invalid input')
   }
-  const data = raw as { weeks?: number }
-  if (data.weeks === undefined) {
-    return {}
+  const data = raw as { weeks?: number; team?: unknown }
+  const result: { weeks?: number; team?: string } = {}
+  if (data.weeks !== undefined) {
+    if (typeof data.weeks !== 'number' || !Number.isInteger(data.weeks) || data.weeks <= 0) {
+      throw new Error('weeks must be a positive integer')
+    }
+    result.weeks = data.weeks
   }
-  if (typeof data.weeks !== 'number' || !Number.isInteger(data.weeks) || data.weeks <= 0) {
-    throw new Error('weeks must be a positive integer')
+  if (data.team !== undefined) {
+    if (typeof data.team !== 'string') {
+      throw new Error('team must be a string')
+    }
+    result.team = data.team
   }
-  return { weeks: data.weeks }
+  return result
 }
 
 export type { PrCycleTimeDashboard } from '~/metrics/pr-cycle-time-dashboard'
@@ -25,7 +32,7 @@ export const getDashboardData = createServerFn({ method: 'GET' })
   .inputValidator((raw: unknown) => parseDashboardWeeksInput(raw ?? {}))
   .handler(async ({ data }) => {
     const { loadDashboardPayload } = await import('~/server/load-dashboard-payload')
-    return loadDashboardPayload(data.weeks)
+    return loadDashboardPayload(data.weeks, undefined, data.team)
   })
 
 export type RefreshLocalDataResult =

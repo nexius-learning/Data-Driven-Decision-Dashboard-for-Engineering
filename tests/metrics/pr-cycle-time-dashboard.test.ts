@@ -654,4 +654,47 @@ describe('pr-cycle-time-dashboard', () => {
     expect(d.exceptions.length).toBe(3)
     expect(d.exceptions.every((e) => e.type === 'baseline_pending')).toBe(true)
   })
+
+  it('team_filter_scopes_median_and_weekly_trend_to_requested_team', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    // Alpha: 10-hour cycle time
+    await insertPr(alphaRid, {
+      number: 1,
+      openedAt: new Date(merged.getTime() - 10 * 3600000),
+      mergedAt: merged,
+    })
+    // Beta: 100-hour cycle time
+    await insertPr(betaRid, {
+      number: 2,
+      openedAt: new Date(merged.getTime() - 100 * 3600000),
+      mergedAt: merged,
+    })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    expect(d.metric.mergedPrCount).toBe(1)
+    expect(d.metric.medianHours).toBe(10)
+    expect(d.weeklyTrend.every((w) => w.medianHours === null || w.medianHours <= 10)).toBe(true)
+  })
+
+  it('team_filter_falls_back_to_all_teams_for_unrecognised_team', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const rid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    await insertPr(rid, {
+      number: 1,
+      openedAt: new Date(merged.getTime() - 10 * 3600000),
+      mergedAt: merged,
+    })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'NonExistentTeam' })
+    expect(d.metric.mergedPrCount).toBe(1)
+  })
 })
