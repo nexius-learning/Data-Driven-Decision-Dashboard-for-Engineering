@@ -26,6 +26,22 @@ export function HomePage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+    void pollFn()
+      .then((run) => {
+        if (cancelled || run === null) return
+        const state = deriveRefreshButtonState(run, Date.now(), ZOMBIE_TTL_MS)
+        if (state.status !== 'running') return
+        setActiveRun(run)
+        setRefreshing(true)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
     if (!refreshing) {
       if (pollRef.current !== null) {
         clearInterval(pollRef.current)
