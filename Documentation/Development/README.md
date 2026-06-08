@@ -63,6 +63,102 @@ The dashboard route requires **`DATABASE_URL`** in `.env` (or the process enviro
 
 For behaviour, environment variables, and when to use refresh vs GitHub import, see **[Scripts and CLI commands](../Setup/scripts.md)**.
 
+## Running a second instance from a git worktree
+
+Git worktrees are fully independent — two worktrees can run side by side with no
+interference at the git level. The friction is purely about ports and Docker
+container names.
+
+### Host-side dev server (no Docker app container)
+
+```bash
+# In the worktree directory:
+npm install          # node_modules are NOT shared between worktrees
+npm run dev -- --port 3001   # avoid clashing with the main instance on 3000
+```
+
+`scripts/dev.ts` constructs the Vite binary path from `process.cwd()`, so you
+must run the command **from the worktree directory** (or use `npm run` which sets
+the cwd automatically).
+
+### Full Docker stack alongside an already-running stack
+
+The main stack occupies container names `dddd-app` / `dddd-postgres` and ports
+`3000` / `54332`. A worktree stack needs different names and ports.
+
+**Option A — own Postgres** (fully isolated databases):
+
+```yaml
+# docker-compose.override.yml in the worktree (gitignored)
+services:
+  postgres:
+    container_name: dddd-postgres-td
+    ports:
+      - '54333:5432'   # must use a *new* key, not replace — compose merges arrays
+  app:
+    build: .
+    container_name: dddd-app-td
+    init: true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dddd:dddd_local_dev@postgres:5432/dddd_dev
+      TEST_DATABASE_URL: postgresql://dddd:dddd_local_dev@postgres:5432/dddd_test
+      DASHBOARD_REPO_ROOT: /repos
+    ports:
+      - '3001:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - 'd:\Downloaded\dddd_repos:/repos'
+```
+
+> **Gotcha**: `ports` in an override file is **appended**, not replaced. Writing
+> `- '54333:5432'` alongside the base file's `- '54332:5432'` gives the container
+> *both* bindings — the 54332 conflict still fires. Use a distinct host-port that
+> doesn't clash, or use Option B.
+
+**Option B — share the running Postgres** (same data, saves a container):
+
+```yaml
+# docker-compose.override.yml in the worktree
+services:
+  postgres:
+    profiles:
+      - skip   # prevents compose from starting a second Postgres
+
+  app:
+    build: .
+    container_name: dddd-app-td
+    init: true
+    # no depends_on — postgres is external
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://dddd:dddd_local_dev@host.docker.internal:54332/dddd_dev
+      TEST_DATABASE_URL: postgresql://dddd:dddd_local_dev@host.docker.internal:54332/dddd_test
+      DASHBOARD_REPO_ROOT: /repos
+    ports:
+      - '3001:3000'
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - 'd:\Downloaded\dddd_repos:/repos'
+```
+
+`host.docker.internal` is the Docker Desktop magic hostname that resolves to the
+host machine from inside a container (works on Windows and macOS Docker Desktop).
+
+Then start with:
+
+```bash
+docker compose up --build -d --wait
+```
+
+The image is tagged after the worktree directory name (e.g. `team_dropdown-app`),
+so it doesn't collide with the main `dddd-app` image either.
+
 ## Testing conventions
 
 - Prefer **tests first** for new behaviour (see the implementation plan per task).
