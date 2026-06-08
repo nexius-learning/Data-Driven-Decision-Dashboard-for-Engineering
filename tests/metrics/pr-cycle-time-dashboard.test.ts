@@ -697,4 +697,40 @@ describe('pr-cycle-time-dashboard', () => {
     const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'NonExistentTeam' })
     expect(d.metric.mergedPrCount).toBe(1)
   })
+
+  it('team_filter_shows_all_teams_in_breakdown', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    await insertPr(alphaRid, { number: 1, openedAt: new Date(merged.getTime() - 10 * 3600000), mergedAt: merged })
+    await insertPr(betaRid, { number: 2, openedAt: new Date(merged.getTime() - 100 * 3600000), mergedAt: merged })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    expect(d.teamBreakdown).toHaveLength(2)
+    const alpha = d.teamBreakdown.find((t) => t.team === 'Alpha')
+    const beta = d.teamBreakdown.find((t) => t.team === 'Beta')
+    expect(alpha?.medianHours).toBe(10)
+    expect(beta?.medianHours).toBe(100)
+  })
+
+  it('team_filter_scopes_exceptions_to_selected_team', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha'), repo: 'alpha-svc' })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta'), repo: 'beta-svc' })
+
+    // One PR per team in current period, none in previous → baseline_pending for both
+    await insertPr(alphaRid, { number: 1, openedAt: new Date(merged.getTime() - 10 * 3600000), mergedAt: merged })
+    await insertPr(betaRid, { number: 2, openedAt: new Date(merged.getTime() - 100 * 3600000), mergedAt: merged })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    expect(d.exceptions.length).toBeGreaterThan(0)
+    expect(d.exceptions.every((e) => e.team === 'Alpha')).toBe(true)
+  })
 })
