@@ -63,6 +63,7 @@ export type RefreshSummary = {
   status: 'success' | 'partial' | 'failed'
   reviewSyncErrors: number
   sizeSyncErrors: number
+  phaseTimingsMs: Record<string, number>
 }
 
 function buildProcessEnvFromPartial(partial?: Partial<AppEnv>): NodeJS.ProcessEnv {
@@ -142,6 +143,7 @@ export async function refreshLocalData(
         status: 'success',
         reviewSyncErrors: 0,
         sizeSyncErrors: 0,
+        phaseTimingsMs: {},
       }
     } finally {
       await db.$client.end({ timeout: 5 })
@@ -160,6 +162,7 @@ export async function refreshLocalData(
     status: 'failed',
     reviewSyncErrors: 0,
     sizeSyncErrors: 0,
+    phaseTimingsMs: {},
   }
 
   let syncRunId: string | null = null
@@ -472,6 +475,7 @@ export async function refreshLocalData(
       .where(eq(syncRuns.id, syncRunId))
 
     summary.status = runStatus
+    summary.phaseTimingsMs = phaseTimings
     return summary
   } catch (err) {
     if (err instanceof AlreadyRunningError) throw err
