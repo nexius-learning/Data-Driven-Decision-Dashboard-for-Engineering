@@ -184,6 +184,7 @@ export async function refreshLocalData(
 
   try {
     // Expire any zombie running rows (heartbeat stale or missing + old startedAt)
+    const zombieTtlSql = sql.raw(`interval '${ZOMBIE_TTL_SECONDS} seconds'`)
     await db
       .update(syncRuns)
       .set({ status: 'failed', finishedAt: new Date(), message: 'zombie_expired' })
@@ -191,7 +192,7 @@ export async function refreshLocalData(
         and(
           eq(syncRuns.kind, 'collector_refresh'),
           eq(syncRuns.status, 'running'),
-          sql`(${syncRuns.heartbeat} < now() - interval '120 seconds' OR (${syncRuns.heartbeat} IS NULL AND ${syncRuns.startedAt} < now() - interval '120 seconds'))`,
+          sql`(${syncRuns.heartbeat} < now() - ${zombieTtlSql} OR (${syncRuns.heartbeat} IS NULL AND ${syncRuns.startedAt} < now() - ${zombieTtlSql}))`,
         ),
       )
 

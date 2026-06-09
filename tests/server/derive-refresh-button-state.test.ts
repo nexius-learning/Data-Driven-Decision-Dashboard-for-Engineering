@@ -13,6 +13,7 @@ function running(overrides: Partial<ActiveSyncRun> = {}): ActiveSyncRun {
     inFlightRepos: null,
     errorCount: 0,
     heartbeatAt: null,
+    startedAt: new Date(NOW_MS),
     ...overrides,
   }
 }
@@ -109,5 +110,10 @@ describe('deriveRefreshButtonState', () => {
   it('derive_running_when_heartbeat_is_null', () => {
     const run = running({ heartbeatAt: null })
     expect(deriveRefreshButtonState(run, NOW_MS, TTL_MS).status).toBe('running')
+  })
+
+  it('derive_idle_for_null_heartbeat_with_stale_startedAt', () => {
+    const staleRun = running({ heartbeatAt: null, startedAt: new Date(NOW_MS - TTL_MS - 1) })
+    expect(deriveRefreshButtonState(staleRun, NOW_MS, TTL_MS)).toEqual({ status: 'idle' })
   })
 })

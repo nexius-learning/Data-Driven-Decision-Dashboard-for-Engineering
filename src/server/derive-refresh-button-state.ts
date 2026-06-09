@@ -5,6 +5,7 @@ export type ActiveSyncRun = {
   inFlightRepos: string[] | null
   errorCount: number
   heartbeatAt: Date | null
+  startedAt: Date
 }
 
 export type RefreshButtonState =
@@ -32,6 +33,8 @@ export function deriveRefreshButtonState(
 ): RefreshButtonState {
   if (activeRun === null) return { status: 'idle' }
   if (activeRun.heartbeatAt !== null && nowMs - activeRun.heartbeatAt.getTime() > ttlMs)
+    return { status: 'idle' }
+  if (activeRun.heartbeatAt === null && nowMs - activeRun.startedAt.getTime() > ttlMs)
     return { status: 'idle' }
   const raw = activeRun.currentPhase
   const phaseLabel = raw ? (PHASE_LABELS[raw] ?? raw) : ''

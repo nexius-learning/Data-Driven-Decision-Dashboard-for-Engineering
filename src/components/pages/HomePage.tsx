@@ -24,6 +24,7 @@ export function HomePage() {
   const [refreshError, setRefreshError] = useState<string | null>(null)
   const [activeRun, setActiveRun] = useState<ActiveSyncRun | null>(null)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const attachedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -34,6 +35,7 @@ export function HomePage() {
         if (state.status !== 'running') return
         setActiveRun(run)
         setRefreshing(true)
+        attachedRef.current = true
       })
       .catch(() => {})
     return () => {
@@ -62,6 +64,17 @@ export function HomePage() {
   }, [refreshing])
 
   const derivedState = deriveRefreshButtonState(activeRun, Date.now(), ZOMBIE_TTL_MS)
+
+  useEffect(() => {
+    if (!refreshing || derivedState.status !== 'idle') return
+    if (!attachedRef.current) return
+    attachedRef.current = false
+    setRefreshing(false)
+    if (pollRef.current !== null) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [derivedState.status, refreshing])
   const refreshButtonState =
     refreshing && derivedState.status === 'idle'
       ? { status: 'running' as const, phaseLabel: '', done: 0, total: 0, inFlightRepos: [], errorCount: 0 }

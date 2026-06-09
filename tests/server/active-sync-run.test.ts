@@ -47,6 +47,11 @@ describe('getActiveSyncRun', () => {
     })
     const result = await getActiveSyncRun({ db })
     expect(result).not.toBeNull()
+    expect(result!.currentPhase).toBeNull()
+    expect(result!.phaseDone).toBeNull()
+    expect(result!.phaseTotal).toBeNull()
+    expect(result!.inFlightRepos).toBeNull()
+    expect(result!.heartbeatAt).toBeNull()
   })
 
   it('getActiveSyncRun_returns_progress_columns', async () => {
