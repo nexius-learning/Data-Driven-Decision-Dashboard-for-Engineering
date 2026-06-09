@@ -14,6 +14,7 @@ import { loadTeamMapping } from '~/config/team-mapping'
 import { createDb } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 
+/** Thrown when a second refresh is attempted while one is already running. */
 export class AlreadyRunningError extends Error {
   override name = 'AlreadyRunningError'
   readonly startedAt: Date
@@ -39,6 +40,7 @@ export type ProgressEvent =
       errorCount: number
     }
 
+/** Returns true if the error represents a PostgreSQL unique-constraint violation (code 23505). */
 function isUniqueViolation(err: unknown): boolean {
   if (typeof err !== 'object' || err === null) return false
   const cause = (err as { cause?: unknown }).cause
@@ -66,6 +68,7 @@ export type RefreshSummary = {
   phaseTimingsMs: Record<string, number>
 }
 
+/** Merges optional AppEnv overrides into the current process.env, returning a new env object. */
 function buildProcessEnvFromPartial(partial?: Partial<AppEnv>): NodeJS.ProcessEnv {
   const e: NodeJS.ProcessEnv = { ...process.env }
   if (!partial) {
@@ -91,6 +94,7 @@ function buildProcessEnvFromPartial(partial?: Partial<AppEnv>): NodeJS.ProcessEn
   return e
 }
 
+/** Processes items with at most `limit` workers running concurrently. */
 async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
   if (items.length === 0) return
   const n = Math.max(1, Math.min(limit, items.length))

@@ -42,6 +42,7 @@ export const getSyncSourceData = createServerFn({ method: 'GET' }).handler(async
   }
 })
 
+/** Server function that returns the currently active sync run, or null if no refresh is running. */
 export const getActiveSyncRunFn = createServerFn({ method: 'GET' }).handler(async () => {
   const { createDb } = await import('~/db/client')
   const { getEnv } = await import('~/config/env')

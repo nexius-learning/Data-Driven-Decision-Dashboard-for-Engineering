@@ -1,5 +1,6 @@
 import type { ProgressEvent, RefreshSummary } from '~/collector/refresh'
 
+/** Formats a single progress event as a timestamped CLI log line. */
 export function formatProgressLine(event: ProgressEvent, timestamp: string): string {
   if (event.type === 'phase_start') {
     return `[${timestamp}] phase_start: ${event.phase} (${event.total} repos)`
@@ -8,6 +9,7 @@ export function formatProgressLine(event: ProgressEvent, timestamp: string): str
   return `[${timestamp}] repo_done: ${event.repo} [${event.phase} ${event.done}/${event.total}]${errors}`
 }
 
+/** Formats the completed refresh summary as a human-readable multi-line string. */
 export function formatRunSummary(summary: RefreshSummary): string {
   const lines: string[] = []
   lines.push(`Refresh finished: ${summary.status}`)

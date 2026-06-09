@@ -26,6 +26,10 @@ const PHASE_LABELS: Record<string, string> = {
   pr_size_sync: 'Syncing PR sizes',
 }
 
+/**
+ * Derives the UI state for the Refresh button from the active sync run.
+ * Returns idle if there is no active run or if the heartbeat has exceeded ttlMs (zombie guard).
+ */
 export function deriveRefreshButtonState(
   activeRun: ActiveSyncRun | null,
   nowMs: number,
