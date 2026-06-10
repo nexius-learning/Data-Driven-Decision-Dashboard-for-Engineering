@@ -716,6 +716,45 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(screen.queryByRole('heading', { name: /stale open pr/i })).not.toBeInTheDocument()
   })
 
+  it('dashboard_exception_help_mentions_stale_open_pr_threshold', async () => {
+    render(<PrCycleTimeDashboard data={baseDashboard()} />)
+
+    await fireEvent.click(screen.getAllByText('How to read this')[1]!)
+
+    expect(screen.getByText(/stale open PRs crossing the attention threshold/i)).toBeVisible()
+  })
+
+  it('dashboard_stale_open_pr_links_have_discernible_names', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has stale open pull requests.',
+              count: 1,
+              staleThresholdHours: 72,
+              prDetails: [
+                {
+                  prNumber: 77,
+                  title: 'Release validation',
+                  repo: 'gde-mit/alpha-svc',
+                  url: 'https://github.com/gde-mit/alpha-svc/pull/77',
+                  ageHours: 96,
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByRole('link', { name: '#77 Release validation' })).toBeInTheDocument()
+    expect(screen.getByLabelText('PR #77 in gde-mit/alpha-svc, 4 days open')).toBeInTheDocument()
+  })
+
   it('dashboard_renders_worsened_exception_median_in_hours', () => {
     render(
       <PrCycleTimeDashboard

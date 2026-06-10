@@ -185,8 +185,13 @@ function staleOpenPrDetails(e: PrCycleTimeException): ReactNode {
     <ul className="pr-dashboard__stale-pr-details">
       {e.prDetails.map((pr) => {
         const title = `#${pr.prNumber} ${pr.title}`
+        const age = `${formatDurationHumanDays(pr.ageHours)} open`
         return (
-          <li key={`${pr.repo}-${pr.prNumber}`} className="pr-dashboard__stale-pr-row">
+          <li
+            key={`${pr.repo}-${pr.prNumber}`}
+            className="pr-dashboard__stale-pr-row"
+            aria-label={`PR #${pr.prNumber} in ${pr.repo}, ${age}`}
+          >
             <div className="pr-dashboard__stale-pr-main">
               {pr.url ? (
                 <a className="pr-dashboard__stale-pr-title" href={pr.url}>
@@ -197,7 +202,7 @@ function staleOpenPrDetails(e: PrCycleTimeException): ReactNode {
               )}
               <span className="pr-dashboard__stale-pr-repo">{pr.repo}</span>
             </div>
-            <span className="pr-dashboard__stale-pr-age">{formatDurationHumanDays(pr.ageHours)} open</span>
+            <span className="pr-dashboard__stale-pr-age">{age}</span>
           </li>
         )
       })}
@@ -368,8 +373,8 @@ export function PrCycleTimeDashboard({
             PR cycle time exceptions
           </h2>
           <CardHowToRead>
-            Teams that may need attention in this range: cycle time regressed by at least 25%, open PRs older than
-            the team median, or not enough prior-period merges to compare trends. Up to three exceptions are shown.
+            Teams that may need attention in this range: cycle time regressed by at least 25%, stale open PRs crossing
+            the attention threshold, or not enough prior-period merges to compare trends. Up to three exceptions are shown.
           </CardHowToRead>
           {data.exceptions.length === 0 ? (
             <p className="pr-dashboard__exception-empty">None in this range</p>
