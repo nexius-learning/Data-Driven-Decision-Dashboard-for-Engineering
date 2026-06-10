@@ -569,6 +569,67 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(screen.getByText('Unblock, split, or close stale work before it inflates cycle time.')).toBeInTheDocument()
   })
 
+  it('dashboard_renders_stale_open_pr_single_count_copy', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has one stale open pull request.',
+              count: 1,
+              staleThresholdHours: 72,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('1 PR older than 72h')).toBeInTheDocument()
+  })
+
+  it('dashboard_renders_sub_hour_stale_threshold_copy', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has one stale open pull request.',
+              count: 1,
+              staleThresholdHours: 0.25,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('1 PR older than 0.25h')).toBeInTheDocument()
+  })
+
+  it('dashboard_renders_legacy_long_open_pr_without_count', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has open pull requests older than the team median cycle time.',
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('PRs older than team median')).toBeInTheDocument()
+  })
+
   it('dashboard_stale_open_pr_details_do_not_render_people_fields', () => {
     render(
       <PrCycleTimeDashboard
@@ -783,6 +844,25 @@ describe.sequential('PrCycleTimeDashboard', () => {
 
     expect(screen.getByText('0.077h median')).toBeInTheDocument()
     expect(screen.getByText('Compare against previous-period cycle time')).toBeInTheDocument()
+  })
+
+  it('dashboard_renders_worsened_exception_without_team_median', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'team_worsened',
+              severity: 'warning',
+              team: 'Missing',
+              message: 'Missing median PR cycle time worsened.',
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('—')).toBeInTheDocument()
   })
 
   it('dashboard_does_not_show_future_metrics', () => {

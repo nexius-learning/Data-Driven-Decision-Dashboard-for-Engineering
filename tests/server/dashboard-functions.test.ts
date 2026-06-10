@@ -42,6 +42,11 @@ describe('parseDashboardWeeksInput', () => {
     expect(() => parseDashboardWeeksInput({ team: 42 })).toThrow(/team must be a string/)
     expect(() => parseDashboardWeeksInput({ team: true })).toThrow(/team must be a string/)
   })
+
+  it('rejects_blank_team', () => {
+    expect(() => parseDashboardWeeksInput({ team: '' })).toThrow(/team must be a non-empty string/)
+    expect(() => parseDashboardWeeksInput({ team: '   ' })).toThrow(/team must be a non-empty string/)
+  })
 })
 
 const databaseUrl = process.env.DATABASE_URL?.trim()

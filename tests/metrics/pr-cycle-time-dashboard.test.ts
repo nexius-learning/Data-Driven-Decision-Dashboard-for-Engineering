@@ -251,6 +251,46 @@ describe('pr-cycle-time-dashboard', () => {
     ])
   })
 
+  it('stale_open_pr_details_filter_ineligible_prs_and_sort_ties', () => {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    const repoById = new Map([
+      ['repo-alpha', staleRepo({ id: 'repo-alpha', owner: 'gde-mit', repo: 'zeta-api' })],
+      ['repo-beta', staleRepo({ id: 'repo-beta', owner: 'gde-mit', repo: 'alpha-api' })],
+      ['repo-other-team', staleRepo({ id: 'repo-other-team', team: 'Beta' })],
+    ])
+
+    const empty = buildStaleOpenPrDetails({
+      prs: [staleOpenPr(1, 20)],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+    expect(empty).toEqual({ count: 0, averageAgeHours: null, prDetails: [] })
+
+    const result = buildStaleOpenPrDetails({
+      prs: [
+        staleOpenPr(5, 100, { repositoryId: 'repo-alpha', state: 'merged', mergedAt: now }),
+        staleOpenPr(4, 100, { repositoryId: 'missing-repo' }),
+        staleOpenPr(3, 100, { repositoryId: 'repo-other-team' }),
+        staleOpenPr(2, 100, { repositoryId: 'repo-alpha' }),
+        staleOpenPr(1, 100, { repositoryId: 'repo-beta' }),
+      ],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+
+    expect(result.count).toBe(2)
+    expect(result.prDetails.map((p) => `${p.repo}#${p.prNumber}`)).toEqual([
+      'gde-mit/alpha-api#1',
+      'gde-mit/zeta-api#2',
+    ])
+  })
+
   it('dashboard_returns_single_metric_contract', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)

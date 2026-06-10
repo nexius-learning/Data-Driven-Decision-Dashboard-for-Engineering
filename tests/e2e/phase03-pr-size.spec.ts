@@ -77,7 +77,7 @@ test('phase03_team_table_renders @phase03', async ({ page }) => {
   await expect(prSizeTable.getByRole('cell', { name: 'TeamAlpha' })).toBeVisible()
 })
 
-test('phase03_exceptions_panel_hidden_when_no_exceptions @phase03', async ({ page }) => {
+test('phase03_exceptions_panel_shows_empty_state_when_no_exceptions @phase03', async ({ page }) => {
   const db = createDb(databaseUrl)
   try {
     await resetPhase03(db)
@@ -87,7 +87,8 @@ test('phase03_exceptions_panel_hidden_when_no_exceptions @phase03', async ({ pag
   }
   await page.goto('/')
   await expect(page.getByTestId('phase03-section')).toBeVisible({ timeout: 5000 })
-  await expect(page.getByTestId('pr-size-exceptions')).not.toBeVisible()
+  await expect(page.getByTestId('pr-size-exceptions')).toBeVisible()
+  await expect(page.getByText('No oversized PR patterns in this range')).toBeVisible()
 })
 
 test('phase03_phase01_still_visible @phase03', async ({ page }) => {
