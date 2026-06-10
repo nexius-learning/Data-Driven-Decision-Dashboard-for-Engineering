@@ -670,7 +670,7 @@ describe('pr-cycle-time-dashboard', () => {
     expect(aliceIdx).toBeLessThan(bobIdx)
   })
 
-  it('exceptions_detect_long_open_prs', async () => {
+  it('exceptions_detect_stale_open_prs_with_details', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)
     const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
@@ -682,14 +682,24 @@ describe('pr-cycle-time-dashboard', () => {
     })
     await insertPr(rid, {
       number: 2,
+      title: 'Old stale work',
       state: 'open',
       openedAt: new Date(now.getTime() - 200 * 3600000),
       mergedAt: null,
+      url: 'https://github.com/gde-mit/alpha-svc/pull/2',
     })
     await insertPr(rid, {
       number: 3,
+      title: 'Younger stale work',
       state: 'open',
       openedAt: new Date(now.getTime() - 100 * 3600000),
+      mergedAt: null,
+      url: 'https://github.com/gde-mit/alpha-svc/pull/3',
+    })
+    await insertPr(rid, {
+      number: 4,
+      state: 'open',
+      openedAt: new Date(now.getTime() - 72 * 3600000),
       mergedAt: null,
     })
     const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
@@ -697,21 +707,112 @@ describe('pr-cycle-time-dashboard', () => {
     expect(ex).toBeTruthy()
     expect(ex?.count).toBe(2)
     expect(ex?.teamMedianHours).toBe(5)
+    expect(ex?.staleThresholdHours).toBe(72)
     expect(ex?.averageOpenPrAgeHours).toBe(150)
-    expect(ex?.percentOverTeamMedian).toBe(2900)
+    expect(ex?.percentOverStaleThreshold).toBeCloseTo(108.33, 2)
+    expect(ex?.prDetails).toEqual([
+      {
+        prNumber: 2,
+        title: 'Old stale work',
+        repo: 'gde-mit/alpha-svc',
+        url: 'https://github.com/gde-mit/alpha-svc/pull/2',
+        ageHours: 200,
+      },
+      {
+        prNumber: 3,
+        title: 'Younger stale work',
+        repo: 'gde-mit/alpha-svc',
+        url: 'https://github.com/gde-mit/alpha-svc/pull/3',
+        ageHours: 100,
+      },
+    ])
   })
 
-  it('exceptions_suppress_long_open_prs_without_team_median', async () => {
+  it('exceptions_ignore_open_prs_at_or_below_stale_threshold', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const rid = await insertRepo({ team: 'Alpha' })
     await insertPr(rid, {
       number: 2,
       state: 'open',
-      openedAt: new Date(now.getTime() - 500 * 3600000),
+      openedAt: new Date(now.getTime() - 72 * 3600000),
       mergedAt: null,
     })
     const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
     expect(d.exceptions.some((e) => e.type === 'long_open_prs')).toBe(false)
+  })
+
+  it('exceptions_stale_pr_details_sorted_and_capped_all_teams', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const rid = await insertRepo({ team: 'Alpha' })
+    for (const [index, age] of [100, 200, 150, 175].entries()) {
+      await insertPr(rid, {
+        number: index + 10,
+        state: 'open',
+        openedAt: new Date(now.getTime() - age * 3600000),
+        mergedAt: null,
+      })
+    }
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
+    const ex = d.exceptions.find((e) => e.type === 'long_open_prs' && e.team === 'Alpha')
+
+    expect(ex?.count).toBe(4)
+    expect(ex?.prDetails).toHaveLength(3)
+    expect(ex?.prDetails?.map((p) => p.ageHours)).toEqual([200, 175, 150])
+  })
+
+  it('exceptions_do_not_expose_people_fields', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const rid = await insertRepo({ team: 'Alpha' })
+    await insertPr(rid, {
+      number: 20,
+      state: 'open',
+      openedAt: new Date(now.getTime() - 100 * 3600000),
+      mergedAt: null,
+    })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
+    const ex = d.exceptions.find((e) => e.type === 'long_open_prs' && e.team === 'Alpha')
+
+    expect(Object.keys(ex?.prDetails?.[0] ?? {}).sort()).toEqual([
+      'ageHours',
+      'prNumber',
+      'repo',
+      'title',
+      'url',
+    ])
+  })
+
+  it('exceptions_existing_worsened_and_baseline_behavior_is_unchanged', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current, previous } = getDashboardDateRanges(now, 8)
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha') })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta') })
+    const prevMerged = new Date(previous.from.getTime() + 3 * 24 * 60 * 60 * 1000)
+    const curMerged = new Date(current.from.getTime() + 3 * 24 * 60 * 60 * 1000)
+
+    for (let i = 0; i < 3; i += 1) {
+      await insertPr(alphaRid, {
+        number: 30 + i,
+        openedAt: new Date(prevMerged.getTime() - 40 * 3600000),
+        mergedAt: prevMerged,
+      })
+      await insertPr(alphaRid, {
+        number: 40 + i,
+        openedAt: new Date(curMerged.getTime() - 60 * 3600000),
+        mergedAt: curMerged,
+      })
+    }
+    await insertPr(betaRid, {
+      number: 50,
+      openedAt: new Date(curMerged.getTime() - 10 * 3600000),
+      mergedAt: curMerged,
+    })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8 })
+
+    expect(d.exceptions.some((e) => e.type === 'team_worsened' && e.team === 'Alpha')).toBe(true)
+    expect(d.exceptions.some((e) => e.type === 'baseline_pending' && e.team === 'Beta')).toBe(true)
   })
 
   it('exceptions_include_baseline_pending', async () => {

@@ -520,31 +520,33 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
       })
     }
 
-    if (row.medianHours != null) {
-      const teamMedian = row.medianHours
-      const tooOldPrs = prs.filter((p) => {
-        if (p.state !== 'open') return false
-        const r = repoById.get(p.repositoryId)
-        if (!r || repoTeamLabel(r) !== row.team) return false
-        const ageH = (now.getTime() - p.openedAt.getTime()) / MS_PER_HOUR
-        return ageH > teamMedian
+    const staleThresholdHours = staleOpenPrThresholdHours(row.medianHours)
+    const staleOpenPrs = buildStaleOpenPrDetails({
+      prs,
+      repoById,
+      team: row.team,
+      now,
+      thresholdHours: staleThresholdHours,
+      limit: STALE_OPEN_PR_DETAIL_LIMIT,
+    })
+    if (staleOpenPrs.count > 0 && staleOpenPrs.averageAgeHours != null) {
+      exceptions.push({
+        type: 'long_open_prs',
+        severity: 'warning',
+        team: row.team,
+        message: `${row.team} has stale open pull requests older than the ${staleThresholdHours}-hour attention threshold.`,
+        count: staleOpenPrs.count,
+        teamMedianHours: row.medianHours ?? undefined,
+        staleThresholdHours,
+        averageOpenPrAgeHours: staleOpenPrs.averageAgeHours,
+        percentOverTeamMedian:
+          row.medianHours != null && row.medianHours > 0
+            ? ((staleOpenPrs.averageAgeHours - row.medianHours) / row.medianHours) * 100
+            : undefined,
+        percentOverStaleThreshold:
+          ((staleOpenPrs.averageAgeHours - staleThresholdHours) / staleThresholdHours) * 100,
+        prDetails: staleOpenPrs.prDetails,
       })
-      const tooOldCount = tooOldPrs.length
-      if (tooOldCount > 0) {
-        const tooOldAges = tooOldPrs.map((p) => (now.getTime() - p.openedAt.getTime()) / MS_PER_HOUR)
-        const averageOpenPrAgeHours = tooOldAges.reduce((sum, age) => sum + age, 0) / tooOldAges.length
-        exceptions.push({
-          type: 'long_open_prs',
-          severity: 'warning',
-          team: row.team,
-          message: `${row.team} has open pull requests older than the team's current median cycle time.`,
-          count: tooOldCount,
-          teamMedianHours: teamMedian,
-          averageOpenPrAgeHours,
-          percentOverTeamMedian:
-            teamMedian > 0 ? ((averageOpenPrAgeHours - teamMedian) / teamMedian) * 100 : undefined,
-        })
-      }
     }
   }
 
