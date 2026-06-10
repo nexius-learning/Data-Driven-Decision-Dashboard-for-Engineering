@@ -80,6 +80,12 @@ describe('phase 02 first review time spec', () => {
     expect(body).toMatch(/phase-02-first-review-time\.md/)
     expect(body).toMatch(/04-pr-cycle-time-and-first-review\.png/)
   })
+
+  it('docs_fix005_roadmap_links_are_valid', () => {
+    const body = readDoc('Documentation/Roadmap/trackable-roadmap.md')
+    expect(body).toMatch(/FIX-005-stale-open-pr-exceptions\.md/)
+    expect(body).toMatch(/stale-open-pr-exceptions-brief\.md/)
+  })
 })
 
 describe('one-page metric layout rule', () => {

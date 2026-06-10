@@ -17,6 +17,12 @@ This is the execution checklist for humans and LLM agents.
 
 ## Current Next Step
 
+Scheduled pre-Phase-04 refinement: **FIX-005: Stale Open PR Exceptions**
+
+FIX-005 plan: [FIX-005-stale-open-pr-exceptions.md](../Backlog/FIX-005-stale-open-pr-exceptions.md)
+
+FIX-005 authoritative brief: [stale-open-pr-exceptions-brief.md](../Backlog/stale-open-pr-exceptions-brief.md)
+
 Completed stabilization gate before the next feature phase: **FIX-004: Remaining Dashboard 16-Week Trend Expansion**
 
 FIX-004 plan: [FIX-004-remaining-dashboard-16-week-trend-expansion.md](../Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md)
@@ -124,6 +130,16 @@ Authoritative brief: [remaining-dashboard-16-week-trend-expansion-brief.md](../C
 Goal: stabilize the existing dashboard trends before Phase 04 begins. Jira Flow Metrics remains the next feature phase.
 
 - [x] Complete the scheduled FIX-004 dashboard stabilization work.
+
+## FIX-005: Stale Open PR Exceptions (Scheduled Pre-Phase-04 Refinement)
+
+Implementation plan: [FIX-005-stale-open-pr-exceptions.md](../Backlog/FIX-005-stale-open-pr-exceptions.md)
+
+Authoritative brief: [stale-open-pr-exceptions-brief.md](../Backlog/stale-open-pr-exceptions-brief.md)
+
+Goal: make the existing PR Cycle Time long-open-PR exception actionable with concrete stale open PR details before Phase 04 begins. Jira Flow Metrics remains the next feature phase.
+
+- [ ] Complete the scheduled FIX-005 dashboard refinement work.
 
 ## Phase 04: Jira Flow Metrics
 
