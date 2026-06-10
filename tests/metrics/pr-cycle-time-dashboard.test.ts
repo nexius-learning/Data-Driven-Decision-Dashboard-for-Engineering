@@ -815,6 +815,76 @@ describe('pr-cycle-time-dashboard', () => {
     expect(d.exceptions.some((e) => e.type === 'baseline_pending' && e.team === 'Beta')).toBe(true)
   })
 
+  it('exceptions_stale_pr_details_expanded_for_team_filter', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const rid = await insertRepo({ team: 'Alpha' })
+    for (let i = 0; i < 11; i += 1) {
+      await insertPr(rid, {
+        number: 100 + i,
+        state: 'open',
+        openedAt: new Date(now.getTime() - (100 + i) * 3600000),
+        mergedAt: null,
+      })
+    }
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+    const ex = d.exceptions.find((e) => e.type === 'long_open_prs' && e.team === 'Alpha')
+
+    expect(ex?.count).toBe(11)
+    expect(ex?.prDetails).toHaveLength(10)
+    expect(ex?.prDetails?.[0]?.ageHours).toBe(110)
+  })
+
+  it('exceptions_team_filter_does_not_expand_other_teams', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const rid = await insertRepo({ team: 'Alpha' })
+    for (let i = 0; i < 11; i += 1) {
+      await insertPr(rid, {
+        number: 120 + i,
+        state: 'open',
+        openedAt: new Date(now.getTime() - (100 + i) * 3600000),
+        mergedAt: null,
+      })
+    }
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'NonExistentTeam' })
+
+    expect(d.metric.mergedPrCount).toBe(0)
+    expect(d.exceptions).toHaveLength(0)
+  })
+
+  it('team_filter_preserves_existing_median_and_weekly_trend_scope', async () => {
+    const now = new Date('2026-05-14T15:00:00.000')
+    const { current } = getDashboardDateRanges(now, 8)
+    const merged = new Date(current.from.getTime() + 2 * 24 * 60 * 60 * 1000)
+    const alphaRid = await insertRepo({ team: 'Alpha', path: path.join(testRoot, 'alpha') })
+    const betaRid = await insertRepo({ team: 'Beta', path: path.join(testRoot, 'beta') })
+    await insertPr(alphaRid, {
+      number: 1,
+      openedAt: new Date(merged.getTime() - 10 * 3600000),
+      mergedAt: merged,
+    })
+    await insertPr(betaRid, {
+      number: 2,
+      openedAt: new Date(merged.getTime() - 100 * 3600000),
+      mergedAt: merged,
+    })
+    await insertPr(alphaRid, {
+      number: 3,
+      state: 'open',
+      openedAt: new Date(now.getTime() - 120 * 3600000),
+      mergedAt: null,
+    })
+
+    const d = await getPrCycleTimeDashboard({ db, now, weeks: 8, team: 'Alpha' })
+
+    expect(d.metric.mergedPrCount).toBe(1)
+    expect(d.metric.medianHours).toBe(10)
+    expect(d.teamBreakdown).toHaveLength(1)
+    expect(d.teamBreakdown[0].team).toBe('Alpha')
+    expect(d.weeklyTrend.every((w) => w.medianHours === null || w.medianHours === 10)).toBe(true)
+  })
+
   it('exceptions_include_baseline_pending', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)

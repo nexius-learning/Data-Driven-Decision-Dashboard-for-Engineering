@@ -527,7 +527,10 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
       team: row.team,
       now,
       thresholdHours: staleThresholdHours,
-      limit: STALE_OPEN_PR_DETAIL_LIMIT,
+      limit:
+        input.team === row.team
+          ? STALE_OPEN_PR_TEAM_FILTER_DETAIL_LIMIT
+          : STALE_OPEN_PR_DETAIL_LIMIT,
     })
     if (staleOpenPrs.count > 0 && staleOpenPrs.averageAgeHours != null) {
       exceptions.push({
