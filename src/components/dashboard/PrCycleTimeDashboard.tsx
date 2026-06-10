@@ -133,7 +133,7 @@ function exceptionTitle(e: PrCycleTimeException): string {
     case 'team_worsened':
       return `${e.team} worsened`
     case 'long_open_prs':
-      return `${e.team} longest open PRs`
+      return `${e.team} stale open PRs`
     case 'baseline_pending':
       return `${e.team} baseline pending`
     default:
@@ -151,6 +151,9 @@ function exceptionMetric(e: PrCycleTimeException, teams: TeamRow[]): string {
     }
     case 'long_open_prs':
       if (e.count == null) return 'PRs older than team median'
+      if (e.staleThresholdHours != null) {
+        return `${e.count} ${e.count === 1 ? 'PR' : 'PRs'} older than ${formatExceptionHours(e.staleThresholdHours)}`
+      }
       if (e.teamMedianHours == null) {
         return `${e.count} ${e.count === 1 ? 'PR' : 'PRs'} older than team median`
       }
@@ -168,15 +171,38 @@ function exceptionRecommendation(e: PrCycleTimeException): string {
     case 'team_worsened':
       return 'Compare against previous-period cycle time'
     case 'long_open_prs':
-      if (e.averageOpenPrAgeHours != null && e.percentOverTeamMedian != null) {
-        return `Average open age ${formatExceptionHours(e.averageOpenPrAgeHours)} (${formatTrendPercent(e.percentOverTeamMedian)} over median)`
-      }
-      return 'Split or unblock stale reviews'
+      return 'Unblock, split, or close stale work before it inflates cycle time.'
     case 'baseline_pending':
       return 'Collect one more weekly refresh'
     default:
       return e.message
   }
+}
+
+function staleOpenPrDetails(e: PrCycleTimeException): ReactNode {
+  if (e.type !== 'long_open_prs' || !e.prDetails || e.prDetails.length === 0) return null
+  return (
+    <ul className="pr-dashboard__stale-pr-details">
+      {e.prDetails.map((pr) => {
+        const title = `#${pr.prNumber} ${pr.title}`
+        return (
+          <li key={`${pr.repo}-${pr.prNumber}`} className="pr-dashboard__stale-pr-row">
+            <div className="pr-dashboard__stale-pr-main">
+              {pr.url ? (
+                <a className="pr-dashboard__stale-pr-title" href={pr.url}>
+                  {title}
+                </a>
+              ) : (
+                <span className="pr-dashboard__stale-pr-title">{title}</span>
+              )}
+              <span className="pr-dashboard__stale-pr-repo">{pr.repo}</span>
+            </div>
+            <span className="pr-dashboard__stale-pr-age">{formatDurationHumanDays(pr.ageHours)} open</span>
+          </li>
+        )
+      })}
+    </ul>
+  )
 }
 
 /** Renders a coloured trend indicator badge for team_worsened exceptions. */
@@ -363,6 +389,7 @@ export function PrCycleTimeDashboard({
                       {exceptionTrendSnippet(e, data.teamBreakdown)}
                     </div>
                     <p className="pr-dashboard__exception-recommendation">{exceptionRecommendation(e)}</p>
+                    {staleOpenPrDetails(e)}
                   </div>
                 </li>
               ))}

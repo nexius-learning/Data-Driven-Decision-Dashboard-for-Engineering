@@ -496,7 +496,56 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(screen.getByText(/Alpha baseline pending/)).toBeInTheDocument()
   })
 
-  it('dashboard_renders_long_open_prs_count', () => {
+  it('dashboard_renders_stale_open_pr_details', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has stale open pull requests.',
+              count: 2,
+              teamMedianHours: 36,
+              staleThresholdHours: 72,
+              averageOpenPrAgeHours: 132,
+              percentOverStaleThreshold: 83,
+              prDetails: [
+                {
+                  prNumber: 7,
+                  title: 'Keep API warm',
+                  repo: 'gde-mit/alpha-svc',
+                  url: 'https://github.com/gde-mit/alpha-svc/pull/7',
+                  ageHours: 96,
+                },
+                {
+                  prNumber: 8,
+                  title: 'Remove stale branch',
+                  repo: 'gde-mit/alpha-svc',
+                  url: 'https://github.com/gde-mit/alpha-svc/pull/8',
+                  ageHours: 168,
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Alpha stale open PRs')).toBeInTheDocument()
+    expect(screen.getByText('2 PRs older than 72h')).toBeInTheDocument()
+    expect(screen.getByText('Unblock, split, or close stale work before it inflates cycle time.')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '#7 Keep API warm' })).toHaveAttribute(
+      'href',
+      'https://github.com/gde-mit/alpha-svc/pull/7',
+    )
+    expect(screen.getAllByText('gde-mit/alpha-svc')).toHaveLength(2)
+    expect(screen.getByText('4 days open')).toBeInTheDocument()
+    expect(screen.getByText('7 days open')).toBeInTheDocument()
+  })
+
+  it('dashboard_renders_stale_open_pr_summary_without_details', () => {
     render(
       <PrCycleTimeDashboard
         data={baseDashboard({
@@ -517,7 +566,89 @@ describe.sequential('PrCycleTimeDashboard', () => {
     )
 
     expect(screen.getByText('6 PRs older than 36h team median')).toBeInTheDocument()
-    expect(screen.getByText('Average open age 54h (+50% over median)')).toBeInTheDocument()
+    expect(screen.getByText('Unblock, split, or close stale work before it inflates cycle time.')).toBeInTheDocument()
+  })
+
+  it('dashboard_stale_open_pr_details_do_not_render_people_fields', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has stale open pull requests.',
+              count: 1,
+              staleThresholdHours: 72,
+              prDetails: [
+                {
+                  prNumber: 9,
+                  title: 'Fix queue drain',
+                  repo: 'gde-mit/alpha-svc',
+                  url: '',
+                  ageHours: 96,
+                  authorLogin: 'alice',
+                  assigneeLogin: 'bob',
+                  reviewerLogin: 'chris',
+                } as never,
+              ],
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('#9 Fix queue drain')).toBeInTheDocument()
+    expect(screen.queryByText('alice')).not.toBeInTheDocument()
+    expect(screen.queryByText('bob')).not.toBeInTheDocument()
+    expect(screen.queryByText('chris')).not.toBeInTheDocument()
+  })
+
+  it('dashboard_existing_worsened_and_baseline_exceptions_still_render', () => {
+    render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'team_worsened',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha median PR cycle time worsened by at least 25% versus the previous period.',
+            },
+            {
+              type: 'baseline_pending',
+              severity: 'info',
+              team: 'Beta',
+              message: 'Beta baseline pending.',
+            },
+          ],
+          teamBreakdown: [
+            {
+              team: 'Alpha',
+              mergedPrs: 4,
+              medianHours: 36,
+              previousMedianHours: 20,
+              trendPercent: 80,
+              longestOpenPrHours: null,
+            },
+            {
+              team: 'Beta',
+              mergedPrs: 1,
+              medianHours: 12,
+              previousMedianHours: null,
+              trendPercent: null,
+              longestOpenPrHours: null,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Alpha worsened')).toBeInTheDocument()
+    expect(screen.getByText('36h median')).toBeInTheDocument()
+    expect(screen.getByText('Beta baseline pending')).toBeInTheDocument()
+    expect(screen.getByText('Not enough prior-period data')).toBeInTheDocument()
   })
 
   it('dashboard_renders_worsened_exception_median_in_hours', () => {
