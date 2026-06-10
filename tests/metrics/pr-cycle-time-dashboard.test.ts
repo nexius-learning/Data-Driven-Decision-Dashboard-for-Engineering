@@ -8,10 +8,13 @@ import { getDashboardDateRanges } from '~/config/env'
 import { createDb, runMigrations } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 import {
+  buildStaleOpenPrDetails,
   DASHBOARD_UNASSIGNED_TEAM,
   getPrCycleTimeDashboard,
+  repoDisplayName,
   staleOpenPrThresholdHours,
 } from '~/metrics/pr-cycle-time-dashboard'
+import type { PullRequestRecord } from '~/metrics/pr-cycle-time'
 
 const databaseUrl = process.env.DATABASE_URL?.trim()
 
@@ -114,6 +117,138 @@ describe('pr-cycle-time-dashboard', () => {
     expect(staleOpenPrThresholdHours(Number.NaN)).toBe(72)
     expect(staleOpenPrThresholdHours(0)).toBe(72)
     expect(staleOpenPrThresholdHours(-1)).toBe(72)
+  })
+
+  function staleRepo(
+    overrides: Partial<typeof repositories.$inferSelect> = {},
+  ): typeof repositories.$inferSelect {
+    return {
+      id: overrides.id ?? 'repo-alpha',
+      name: overrides.name ?? 'alpha-svc',
+      path: overrides.path ?? path.join(testRoot, 'alpha-svc'),
+      rootPath: overrides.rootPath ?? testRoot,
+      remoteUrl: overrides.remoteUrl ?? 'https://github.com/gde-mit/alpha-svc.git',
+      owner: 'owner' in overrides ? overrides.owner! : 'gde-mit',
+      repo: 'repo' in overrides ? overrides.repo! : 'alpha-svc',
+      remoteIdentity: overrides.remoteIdentity ?? null,
+      team: overrides.team ?? 'Alpha',
+      scanStatus: overrides.scanStatus ?? 'ready',
+      active: overrides.active ?? true,
+      lastScannedAt: overrides.lastScannedAt ?? null,
+      lastPrSyncedAt: overrides.lastPrSyncedAt ?? null,
+      lastReviewSyncedAt: overrides.lastReviewSyncedAt ?? null,
+      createdAt: overrides.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: overrides.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
+    }
+  }
+
+  function staleOpenPr(
+    number: number,
+    ageHours: number,
+    overrides: Partial<PullRequestRecord> = {},
+  ): PullRequestRecord {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    return {
+      id: overrides.id ?? `pr-${number}`,
+      repositoryId: overrides.repositoryId ?? 'repo-alpha',
+      githubNodeId: overrides.githubNodeId ?? `node-${number}`,
+      number,
+      title: overrides.title ?? `Stale PR ${number}`,
+      state: overrides.state ?? 'open',
+      isDraft: overrides.isDraft ?? false,
+      openedAt: overrides.openedAt ?? new Date(now.getTime() - ageHours * 3600000),
+      githubUpdatedAt: overrides.githubUpdatedAt ?? now,
+      mergedAt: overrides.mergedAt ?? null,
+      url: overrides.url ?? `https://github.com/gde-mit/alpha-svc/pull/${number}`,
+      missingJiraKey: overrides.missingJiraKey ?? false,
+      additions: overrides.additions ?? null,
+      deletions: overrides.deletions ?? null,
+      changedFiles: overrides.changedFiles ?? null,
+      mergeCommitSha: overrides.mergeCommitSha ?? null,
+      createdAt: overrides.createdAt ?? new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: overrides.updatedAt ?? new Date('2026-01-01T00:00:00.000Z'),
+    }
+  }
+
+  it('stale_open_pr_details_sorted_by_age_descending', () => {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    const repoById = new Map([['repo-alpha', staleRepo()]])
+
+    const result = buildStaleOpenPrDetails({
+      prs: [staleOpenPr(1, 90), staleOpenPr(2, 140), staleOpenPr(3, 100)],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+
+    expect(result.prDetails.map((p) => p.prNumber)).toEqual([2, 3, 1])
+  })
+
+  it('stale_open_pr_details_use_repo_full_name_when_available', () => {
+    expect(repoDisplayName(staleRepo({ owner: 'gde-mit', repo: 'alpha-api' }))).toBe('gde-mit/alpha-api')
+    expect(repoDisplayName(staleRepo({ owner: null, repo: null, name: 'local-alpha' }))).toBe('local-alpha')
+  })
+
+  it('stale_open_pr_details_ignore_negative_open_age', () => {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    const repoById = new Map([['repo-alpha', staleRepo()]])
+
+    const result = buildStaleOpenPrDetails({
+      prs: [staleOpenPr(1, 100), staleOpenPr(2, -10)],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+
+    expect(result.count).toBe(1)
+    expect(result.prDetails.map((p) => p.prNumber)).toEqual([1])
+  })
+
+  it('stale_open_pr_details_count_all_but_cap_details', () => {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    const repoById = new Map([['repo-alpha', staleRepo()]])
+
+    const result = buildStaleOpenPrDetails({
+      prs: [staleOpenPr(1, 180), staleOpenPr(2, 160), staleOpenPr(3, 140), staleOpenPr(4, 120)],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+
+    expect(result.count).toBe(4)
+    expect(result.averageAgeHours).toBe(150)
+    expect(result.prDetails.map((p) => p.prNumber)).toEqual([1, 2, 3])
+  })
+
+  it('stale_open_pr_details_are_json_serializable', () => {
+    const now = new Date('2026-05-14T15:00:00.000Z')
+    const repoById = new Map([['repo-alpha', staleRepo()]])
+
+    const result = buildStaleOpenPrDetails({
+      prs: [staleOpenPr(9, 96, { title: 'Serializable PR' })],
+      repoById,
+      team: 'Alpha',
+      now,
+      thresholdHours: 72,
+      limit: 3,
+    })
+    const parsed = JSON.parse(JSON.stringify(result.prDetails))
+
+    expect(parsed).toEqual([
+      {
+        prNumber: 9,
+        title: 'Serializable PR',
+        repo: 'gde-mit/alpha-svc',
+        url: 'https://github.com/gde-mit/alpha-svc/pull/9',
+        ageHours: 96,
+      },
+    ])
   })
 
   it('dashboard_returns_single_metric_contract', async () => {

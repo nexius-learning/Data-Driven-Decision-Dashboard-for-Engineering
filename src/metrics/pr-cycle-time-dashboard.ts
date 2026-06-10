@@ -237,6 +237,53 @@ function repoTeamLabel(repo: typeof repositories.$inferSelect): string {
   return repo.team?.trim() ? repo.team : DASHBOARD_UNASSIGNED_TEAM
 }
 
+export function repoDisplayName(repo: typeof repositories.$inferSelect): string {
+  return repo.owner && repo.repo ? `${repo.owner}/${repo.repo}` : repo.name
+}
+
+function openPrAgeHours(pr: PullRequestRecord, now: Date): number {
+  return (now.getTime() - pr.openedAt.getTime()) / MS_PER_HOUR
+}
+
+export function buildStaleOpenPrDetails(input: {
+  prs: PullRequestRecord[]
+  repoById: Map<string, typeof repositories.$inferSelect>
+  team: string
+  now: Date
+  thresholdHours: number
+  limit: number
+}): { count: number; averageAgeHours: number | null; prDetails: StaleOpenPrDetail[] } {
+  const stale = input.prs
+    .flatMap((pr) => {
+      if (pr.state !== 'open') return []
+      const repo = input.repoById.get(pr.repositoryId)
+      if (repo == null || repoTeamLabel(repo) !== input.team) return []
+      const ageHours = openPrAgeHours(pr, input.now)
+      if (ageHours < 0 || ageHours <= input.thresholdHours) return []
+      return [{ pr, repo, ageHours }]
+    })
+    .sort((a, b) => {
+      if (b.ageHours !== a.ageHours) return b.ageHours - a.ageHours
+      const repoCompare = repoDisplayName(a.repo).localeCompare(repoDisplayName(b.repo))
+      return repoCompare === 0 ? a.pr.number - b.pr.number : repoCompare
+    })
+
+  const averageAgeHours =
+    stale.length === 0 ? null : stale.reduce((sum, item) => sum + item.ageHours, 0) / stale.length
+
+  return {
+    count: stale.length,
+    averageAgeHours,
+    prDetails: stale.slice(0, input.limit).map((item) => ({
+      prNumber: item.pr.number,
+      title: item.pr.title,
+      repo: repoDisplayName(item.repo),
+      url: item.pr.url,
+      ageHours: item.ageHours,
+    })),
+  }
+}
+
 /** Casts a raw DB pull request row to a typed PullRequestRecord. */
 function rowToPr(row: typeof pullRequests.$inferSelect): PullRequestRecord {
   return {
