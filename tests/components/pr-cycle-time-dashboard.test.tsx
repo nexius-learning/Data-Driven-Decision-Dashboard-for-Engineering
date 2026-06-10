@@ -651,6 +651,71 @@ describe.sequential('PrCycleTimeDashboard', () => {
     expect(screen.getByText('Not enough prior-period data')).toBeInTheDocument()
   })
 
+  it('dashboard_stale_open_pr_title_truncates_long_text', () => {
+    const longTitle = 'Investigate and repair a very long stale integration branch title before release'
+    const { container } = render(
+      <PrCycleTimeDashboard
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has stale open pull requests.',
+              count: 1,
+              staleThresholdHours: 72,
+              prDetails: [
+                {
+                  prNumber: 41,
+                  title: longTitle,
+                  repo: 'gde-mit/alpha-svc',
+                  url: 'https://github.com/gde-mit/alpha-svc/pull/41',
+                  ageHours: 144,
+                },
+              ],
+            },
+          ],
+        })}
+      />,
+    )
+
+    const title = screen.getByRole('link', { name: `#41 ${longTitle}` })
+    expect(title).toHaveClass('pr-dashboard__stale-pr-title')
+    expect(container.querySelector('.pr-dashboard__stale-pr-main')).toBeInTheDocument()
+  })
+
+  it('dashboard_renders_expanded_team_filtered_stale_details', () => {
+    const details = Array.from({ length: 10 }, (_, i) => ({
+      prNumber: 200 + i,
+      title: `Selected team stale PR ${i + 1}`,
+      repo: 'gde-mit/alpha-svc',
+      url: `https://github.com/gde-mit/alpha-svc/pull/${200 + i}`,
+      ageHours: 100 + i,
+    }))
+    const { container } = render(
+      <PrCycleTimeDashboard
+        activeTeam="Alpha"
+        data={baseDashboard({
+          exceptions: [
+            {
+              type: 'long_open_prs',
+              severity: 'warning',
+              team: 'Alpha',
+              message: 'Alpha has stale open pull requests.',
+              count: 11,
+              staleThresholdHours: 72,
+              prDetails: details,
+            },
+          ],
+        })}
+      />,
+    )
+
+    expect(container.querySelectorAll('.pr-dashboard__stale-pr-row')).toHaveLength(10)
+    expect(screen.getAllByRole('heading', { name: 'PR cycle time exceptions' })).toHaveLength(1)
+    expect(screen.queryByRole('heading', { name: /stale open pr/i })).not.toBeInTheDocument()
+  })
+
   it('dashboard_renders_worsened_exception_median_in_hours', () => {
     render(
       <PrCycleTimeDashboard
