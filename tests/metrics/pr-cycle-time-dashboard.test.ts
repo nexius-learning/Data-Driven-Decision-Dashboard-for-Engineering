@@ -10,6 +10,7 @@ import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 import {
   DASHBOARD_UNASSIGNED_TEAM,
   getPrCycleTimeDashboard,
+  staleOpenPrThresholdHours,
 } from '~/metrics/pr-cycle-time-dashboard'
 
 const databaseUrl = process.env.DATABASE_URL?.trim()
@@ -102,6 +103,18 @@ describe('pr-cycle-time-dashboard', () => {
       ...overrides,
     })
   }
+
+  it('stale_open_pr_threshold_uses_max_72h_or_team_median', () => {
+    expect(staleOpenPrThresholdHours(24)).toBe(72)
+    expect(staleOpenPrThresholdHours(120)).toBe(120)
+  })
+
+  it('stale_open_pr_threshold_falls_back_to_72h_without_team_median', () => {
+    expect(staleOpenPrThresholdHours(null)).toBe(72)
+    expect(staleOpenPrThresholdHours(Number.NaN)).toBe(72)
+    expect(staleOpenPrThresholdHours(0)).toBe(72)
+    expect(staleOpenPrThresholdHours(-1)).toBe(72)
+  })
 
   it('dashboard_returns_single_metric_contract', async () => {
     const now = new Date('2026-05-14T15:00:00.000')

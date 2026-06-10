@@ -53,6 +53,14 @@ export type PrCycleTimeDashboardInput = {
   team?: string
 }
 
+export type StaleOpenPrDetail = {
+  prNumber: number
+  title: string
+  repo: string
+  url: string
+  ageHours: number
+}
+
 export type PrCycleTimeException = {
   type: 'team_worsened' | 'long_open_prs' | 'baseline_pending'
   severity: 'warning' | 'info'
@@ -60,8 +68,11 @@ export type PrCycleTimeException = {
   message: string
   count?: number
   teamMedianHours?: number
+  staleThresholdHours?: number
   averageOpenPrAgeHours?: number
   percentOverTeamMedian?: number
+  percentOverStaleThreshold?: number
+  prDetails?: StaleOpenPrDetail[]
 }
 
 export type FirstReviewMetric = {
@@ -195,9 +206,19 @@ export type PrCycleTimeDashboard = {
 }
 
 const MS_PER_HOUR = 1000 * 60 * 60
+export const STALE_OPEN_PR_MIN_HOURS = 72
+export const STALE_OPEN_PR_DETAIL_LIMIT = 3
+export const STALE_OPEN_PR_TEAM_FILTER_DETAIL_LIMIT = 10
 
 export const DASHBOARD_UNASSIGNED_TEAM = 'Unassigned'
 export const PR_SIZE_COMPLETED_TREND_WEEKS = 16
+
+export function staleOpenPrThresholdHours(teamMedianHours: number | null): number {
+  if (teamMedianHours == null || !Number.isFinite(teamMedianHours) || teamMedianHours <= 0) {
+    return STALE_OPEN_PR_MIN_HOURS
+  }
+  return Math.max(STALE_OPEN_PR_MIN_HOURS, teamMedianHours)
+}
 
 /** Sorts team labels alphabetically, pinning "Unassigned" to the end. */
 function compareTeamLabels(a: string, b: string): number {
