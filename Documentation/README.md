@@ -39,7 +39,7 @@ The current local dashboard shows three implemented GitHub-backed metrics: PR Cy
 
 Phase 03 (PR Size) is implemented, including the PR Size trend confidence update (FIX-002): completed-week trend values are shown separately from current-week-so-far and low-sample confidence notes (see [FEAT-003-pr-size-implementation-plan.md](Completed/FEAT-003-pr-size-implementation-plan.md)).
 
-The explicitly scheduled [FIX-004 dashboard stabilization gate](Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md) is complete, guided by its [authoritative brief](Completed/remaining-dashboard-16-week-trend-expansion-brief.md). Phase 04 remains the next feature phase: [Phase 04: Jira Flow Metrics](Backlog/phase-04-jira-flow-metrics.md).
+The explicitly scheduled [FIX-004 dashboard stabilization gate](Completed/FIX-004-remaining-dashboard-16-week-trend-expansion.md) is complete, guided by its [authoritative brief](Completed/remaining-dashboard-16-week-trend-expansion-brief.md). FIX-005 is the scheduled pre-Phase-04 refinement: [Stale Open PR Exceptions](Backlog/FIX-005-stale-open-pr-exceptions.md), guided by its [brief](Backlog/stale-open-pr-exceptions-brief.md). Phase 04 remains the next feature phase: [Phase 04: Jira Flow Metrics](Backlog/phase-04-jira-flow-metrics.md).
 
 Current one-page UI reference:
 

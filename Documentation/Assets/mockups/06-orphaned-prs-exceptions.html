@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Orphaned PRs exception mockup</title>
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --surface: #ffffff;
+        --text: #18212f;
+        --muted: #657184;
+        --border: #dfe4ea;
+        --line: #eef1f5;
+        --warn: #b42318;
+        --warn-bg: #fff4ed;
+        --good: #067647;
+        --brand: #1d4ed8;
+        --shadow: 0 14px 34px rgba(24, 33, 47, 0.08);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      .dashboard {
+        min-height: 100vh;
+        padding: 28px 32px 40px;
+      }
+
+      .header {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        max-width: 1180px;
+        margin: 0 auto 28px;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 1.45rem;
+        line-height: 1.15;
+      }
+
+      .brand p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .tabs {
+        display: inline-flex;
+        padding: 4px;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .tab {
+        padding: 7px 14px;
+        border-radius: 6px;
+        background: #eff6ff;
+        color: var(--brand);
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+
+      .toolbar {
+        justify-self: end;
+        display: flex;
+        gap: 8px;
+      }
+
+      .pill,
+      .button {
+        height: 34px;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        background: var(--surface);
+        color: var(--text);
+        padding: 0 11px;
+        font-size: 0.8rem;
+      }
+
+      .button {
+        background: var(--text);
+        color: #fff;
+        border-color: var(--text);
+        font-weight: 700;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        max-width: 1180px;
+        margin: 0 auto;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: var(--shadow);
+        padding: 24px;
+      }
+
+      .title {
+        margin: 0 0 16px;
+        font-size: 1rem;
+        font-weight: 800;
+      }
+
+      .help {
+        margin: 0 0 18px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        line-height: 1.45;
+      }
+
+      .metric-sub {
+        margin: -9px 0 22px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .metric-row {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 20px;
+      }
+
+      .metric-value {
+        font-size: 3.15rem;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .trend {
+        text-align: right;
+      }
+
+      .trend strong {
+        display: block;
+        color: var(--warn);
+        font-size: 1.2rem;
+      }
+
+      .trend span {
+        display: block;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+
+      .metric-footer {
+        margin-top: 23px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      .exception-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .exception-row {
+        display: flex;
+        gap: 12px;
+        padding: 15px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .exception-row:first-child {
+        padding-top: 0;
+      }
+
+      .exception-row:last-child {
+        padding-bottom: 0;
+        border-bottom: 0;
+      }
+
+      .icon {
+        width: 22px;
+        height: 22px;
+        flex: 0 0 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-size: 0.9rem;
+        font-weight: 900;
+      }
+
+      .info {
+        background: #eff6ff;
+        color: var(--brand);
+      }
+
+      .exception-body {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .exception-top {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        align-items: baseline;
+      }
+
+      .exception-name {
+        font-size: 0.94rem;
+        font-weight: 800;
+      }
+
+      .exception-metric {
+        color: var(--muted);
+        font-size: 0.81rem;
+      }
+
+      .recommendation {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 0.81rem;
+        line-height: 1.45;
+      }
+
+      .stale-list {
+        margin-top: 12px;
+        border: 1px solid var(--border);
+        border-radius: 7px;
+        overflow: hidden;
+        background: #fbfcfe;
+      }
+
+      .stale-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .stale-row:last-child {
+        border-bottom: 0;
+      }
+
+      .stale-title {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.83rem;
+        font-weight: 700;
+      }
+
+      .stale-meta {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      .age {
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--warn-bg);
+        color: var(--warn);
+        font-size: 0.74rem;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .table-card {
+        grid-column: 1 / -1;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.82rem;
+      }
+
+      th {
+        padding: 9px 10px 10px 0;
+        color: var(--muted);
+        font-weight: 600;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+
+      td {
+        padding: 13px 10px 13px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .num {
+        text-align: right;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      @media (max-width: 900px) {
+        .dashboard {
+          padding: 18px;
+        }
+
+        .header,
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .toolbar {
+          justify-self: start;
+          flex-wrap: wrap;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="dashboard">
+      <header class="header">
+        <div class="brand">
+          <h1>Engineering Decision Dashboard</h1>
+          <p>Local-first engineering metrics</p>
+        </div>
+        <nav class="tabs" aria-label="Primary">
+          <span class="tab">Overview</span>
+        </nav>
+        <div class="toolbar">
+          <span class="pill">All Teams</span>
+          <span class="pill">Last 8 weeks</span>
+          <span class="pill">Local data</span>
+          <span class="button">Refresh</span>
+        </div>
+      </header>
+
+      <section class="grid">
+        <article class="card">
+          <h2 class="title">Median PR Cycle Time</h2>
+          <p class="metric-sub">PR opened to PR merged</p>
+          <p class="help">
+            Elapsed time from when a pull request is opened until it is merged. A high median often means reviews
+            start late or PRs sit idle.
+          </p>
+          <div class="metric-row">
+            <div class="metric-value">2.3d</div>
+            <div class="trend">
+              <strong>↑ 38%</strong>
+              <span>vs previous 8 weeks</span>
+            </div>
+          </div>
+          <div class="metric-footer">124 merged PRs analyzed</div>
+        </article>
+
+        <article class="card">
+          <h2 class="title">PR cycle time exceptions</h2>
+          <p class="help">
+            Teams that may need attention in this range: cycle time regressed, stale open PRs crossed the attention
+            threshold, or baseline comparison is pending. Up to three exceptions are shown.
+          </p>
+
+          <ul class="exception-list">
+            <li class="exception-row">
+              <span class="icon">!</span>
+              <div class="exception-body">
+                <div class="exception-top">
+                  <span class="exception-name">Platform stale open PRs</span>
+                  <span class="exception-metric">4 PRs older than 72h</span>
+                </div>
+                <p class="recommendation">Unblock, split, or close stale work before it inflates cycle time.</p>
+
+                <div class="stale-list" aria-label="Oldest stale open PRs">
+                  <div class="stale-row">
+                    <div>
+                      <span class="stale-title">#482 Fix billing sync retry ordering</span>
+                      <span class="stale-meta">gde-mit/platform-api</span>
+                    </div>
+                    <span class="age">9d open</span>
+                  </div>
+                  <div class="stale-row">
+                    <div>
+                      <span class="stale-title">#477 Add repository discovery fallback</span>
+                      <span class="stale-meta">gde-mit/dashboard</span>
+                    </div>
+                    <span class="age">6d open</span>
+                  </div>
+                  <div class="stale-row">
+                    <div>
+                      <span class="stale-title">#469 Refactor pull request collector status</span>
+                      <span class="stale-meta">gde-mit/platform-api</span>
+                    </div>
+                    <span class="age">4d open</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li class="exception-row">
+              <span class="icon">!</span>
+              <div class="exception-body">
+                <div class="exception-top">
+                  <span class="exception-name">Frontend worsened</span>
+                  <span class="exception-metric">3.8d median</span>
+                  <span class="exception-metric" style="color: var(--warn); font-weight: 800">↑ 31%</span>
+                </div>
+                <p class="recommendation">Compare against previous-period cycle time.</p>
+              </div>
+            </li>
+
+            <li class="exception-row">
+              <span class="icon info">i</span>
+              <div class="exception-body">
+                <div class="exception-top">
+                  <span class="exception-name">Data baseline pending</span>
+                  <span class="exception-metric">Not enough prior-period data</span>
+                </div>
+                <p class="recommendation">Collect one more weekly refresh.</p>
+              </div>
+            </li>
+          </ul>
+        </article>
+
+        <article class="card table-card">
+          <h2 class="title">Team breakdown</h2>
+          <p class="help">
+            Longest Open PR remains the compact table signal; the exception card shows the concrete stale PRs only
+            when a team crosses the threshold.
+          </p>
+          <table aria-label="Team breakdown">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th class="num">Merged PRs</th>
+                <th class="num">Median</th>
+                <th class="num">Trend</th>
+                <th class="num">Longest Open PR</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Platform</td>
+                <td class="num">38</td>
+                <td class="num">2.1d</td>
+                <td class="num muted">↑ 12%</td>
+                <td class="num">9d</td>
+              </tr>
+              <tr>
+                <td>Frontend</td>
+                <td class="num">29</td>
+                <td class="num">3.8d</td>
+                <td class="num muted">↑ 31%</td>
+                <td class="num">2d</td>
+              </tr>
+            </tbody>
+          </table>
+        </article>
+      </section>
+    </main>
+  </body>
+</html>

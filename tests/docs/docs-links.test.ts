@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 
@@ -6,6 +6,10 @@ const root = path.join(__dirname, '../..')
 
 function readDoc(rel: string): string {
   return readFileSync(path.join(root, rel), 'utf8')
+}
+
+function expectDocPath(rel: string): void {
+  expect(existsSync(path.join(root, rel)), `${rel} should exist`).toBe(true)
 }
 
 describe('documentation links and phase 01 status', () => {
@@ -85,6 +89,22 @@ describe('phase 02 first review time spec', () => {
     const body = readDoc('Documentation/Roadmap/trackable-roadmap.md')
     expect(body).toMatch(/FIX-005-stale-open-pr-exceptions\.md/)
     expect(body).toMatch(/stale-open-pr-exceptions-brief\.md/)
+  })
+
+  it('docs_fix005_brief_and_mockup_links_are_valid', () => {
+    const readme = readDoc('Documentation/README.md')
+    const brief = readDoc('Documentation/Backlog/stale-open-pr-exceptions-brief.md')
+    const plan = readDoc('Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md')
+
+    expect(readme).toMatch(/FIX-005-stale-open-pr-exceptions\.md/)
+    expect(readme).toMatch(/stale-open-pr-exceptions-brief\.md/)
+    expect(brief).toMatch(/Status: Planned/)
+    expect(brief).toMatch(/\.\.\/Assets\/mockups\/06-orphaned-prs-exceptions\.html/)
+    expect(plan).toMatch(/stale-open-pr-exceptions-brief\.md/)
+    expect(plan).toMatch(/\.\.\/Assets\/mockups\/06-orphaned-prs-exceptions\.html/)
+    expectDocPath('Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md')
+    expectDocPath('Documentation/Backlog/stale-open-pr-exceptions-brief.md')
+    expectDocPath('Documentation/Assets/mockups/06-orphaned-prs-exceptions.html')
   })
 })
 
