@@ -1,7 +1,7 @@
 # FIX-005 — Stale Open PR Exceptions
 **Purpose**: Make the existing PR Cycle Time long-open-PR exception actionable by showing concrete stale open PR details.
 **Audience**: Head of Engineering, implementation agent, engineers maintaining the dashboard.
-**Status**: Draft
+**Status**: Verified
 
 ---
 
@@ -12,6 +12,10 @@ The dashboard already computes PR Cycle Time exceptions and includes a `long_ope
 The feature brief is [stale-open-pr-exceptions-brief.md](stale-open-pr-exceptions-brief.md). The visual reference is [06-orphaned-prs-exceptions.html](../Assets/mockups/06-orphaned-prs-exceptions.html).
 
 This is a focused PR Cycle Time refinement. Phase 04 Jira Flow Metrics remains the next feature phase unless the roadmap explicitly schedules this polish item first.
+
+## Completion note
+
+FIX-005 was implemented and verified on 2026-06-11 with `npm run verify:fix005`. The verification run covered the focused stale-open-PR metric, component, and E2E checks plus the Phase 01, Phase 02, and Phase 03 regression gates.
 
 ## Goal
 
@@ -46,20 +50,20 @@ When this plan is complete, the existing PR Cycle Time exceptions card shows sta
 
 ## Acceptance criteria
 
-- [ ] `long_open_prs` exceptions include `staleThresholdHours`, `percentOverStaleThreshold`, and optional `prDetails`.
-- [ ] All-teams mode returns at most the oldest 3 stale open PR details per `long_open_prs` exception.
-- [ ] Team-filtered mode returns at most the oldest 10 stale open PR details for the selected team.
-- [ ] Stale open PR detection uses `ageHours > max(72, teamMedianHours)` when a team median exists.
-- [ ] Stale open PR detection uses `ageHours > 72` when no team median exists.
-- [ ] Negative open PR ages are ignored.
-- [ ] Exception `count` includes all stale open PRs, not only visible detail rows.
-- [ ] The stale PR detail payload remains JSON-serializable.
-- [ ] Detail rows include PR number, title, repository, URL, and age.
-- [ ] No author, assignee, reviewer, or individual-ranking field is added to the payload or UI.
-- [ ] Existing `team_worsened` and `baseline_pending` exception behavior remains unchanged.
-- [ ] Existing PR Cycle Time median, trend, chart, Team Breakdown, First Review, and PR Size calculations remain unchanged.
-- [ ] Desktop and mobile UI show stale PR details without incoherent text overlap.
-- [ ] The all-teams exception list stays compact enough to preserve the first-dashboard-viewport intent from the brief.
+- [x] `long_open_prs` exceptions include `staleThresholdHours`, `percentOverStaleThreshold`, and optional `prDetails`.
+- [x] All-teams mode returns at most the oldest 3 stale open PR details per `long_open_prs` exception.
+- [x] Team-filtered mode returns at most the oldest 10 stale open PR details for the selected team.
+- [x] Stale open PR detection uses `ageHours > max(72, teamMedianHours)` when a team median exists.
+- [x] Stale open PR detection uses `ageHours > 72` when no team median exists.
+- [x] Negative open PR ages are ignored.
+- [x] Exception `count` includes all stale open PRs, not only visible detail rows.
+- [x] The stale PR detail payload remains JSON-serializable.
+- [x] Detail rows include PR number, title, repository, URL, and age.
+- [x] No author, assignee, reviewer, or individual-ranking field is added to the payload or UI.
+- [x] Existing `team_worsened` and `baseline_pending` exception behavior remains unchanged.
+- [x] Existing PR Cycle Time median, trend, chart, Team Breakdown, First Review, and PR Size calculations remain unchanged.
+- [x] Desktop and mobile UI show stale PR details without incoherent text overlap.
+- [x] The all-teams exception list stays compact enough to preserve the first-dashboard-viewport intent from the brief.
 
 ---
 
@@ -169,10 +173,10 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 
 ## Documentation update
 
-- [ ] `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`, section: all, path: `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`
-- [ ] `Documentation/Backlog/stale-open-pr-exceptions-brief.md`, section: status, path: `Documentation/Backlog/stale-open-pr-exceptions-brief.md`
-- [ ] `Documentation/Roadmap/trackable-roadmap.md`, section: Current Next Step / pre-Phase-04 refinements, path: `Documentation/Roadmap/trackable-roadmap.md`
-- [ ] `Documentation/README.md`, section: Next Step, path: `Documentation/README.md`
+- [x] `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`, section: all, path: `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`
+- [x] `Documentation/Backlog/stale-open-pr-exceptions-brief.md`, section: status, path: `Documentation/Backlog/stale-open-pr-exceptions-brief.md`
+- [x] `Documentation/Roadmap/trackable-roadmap.md`, section: Current Next Step / pre-Phase-04 refinements, path: `Documentation/Roadmap/trackable-roadmap.md`
+- [x] `Documentation/README.md`, section: Next Step, path: `Documentation/README.md`
 
 ---
 
@@ -182,7 +186,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 > **Releasable**: when Task 0.2 is complete, FIX-005 is explicitly scheduled as a pre-Phase-04 refinement and implementation may begin without conflicting with the active Phase 04 roadmap.
 
 #### Task 0.1 — Register FIX-005 before implementation
-- [ ] **File**: `Documentation/Roadmap/trackable-roadmap.md`
+- [x] **File**: `Documentation/Roadmap/trackable-roadmap.md`
 - **Depends on**: nothing
 - **Description**:
   - Add FIX-005 as a scheduled pre-Phase-04 dashboard refinement before any payload, UI, or E2E implementation task begins.
@@ -195,7 +199,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/docs/docs-links.test.ts`
 
 #### Task 0.2 — Update brief status and README next-step note
-- [ ] **File**: `Documentation/Backlog/stale-open-pr-exceptions-brief.md`, `Documentation/README.md`
+- [x] **File**: `Documentation/Backlog/stale-open-pr-exceptions-brief.md`, `Documentation/README.md`
 - **Depends on**: Task 0.1
 - **Description**:
   - Update brief status from `Proposed` to `Planned`.
@@ -211,7 +215,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 > **Releasable**: when Task 1.4 is complete, the dashboard payload can identify and describe stale open PRs without UI changes.
 
 #### Task 1.1 — Stale open PR types and threshold helper
-- [ ] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
+- [x] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
 - **Depends on**: Task 0.2
 - **Description**:
   - Add exported type:
@@ -235,7 +239,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/metrics/pr-cycle-time-dashboard.test.ts`
 
 #### Task 1.2 — Stale open PR detail selection
-- [ ] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
+- [x] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
 - **Depends on**: Task 1.1
 - **Description**:
   - Add exported helper:
@@ -265,7 +269,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/metrics/pr-cycle-time-dashboard.test.ts`
 
 #### Task 1.3 — All-teams stale open PR exception payload
-- [ ] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
+- [x] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
 - **Depends on**: Task 1.2
 - **Description**:
   - Replace the current `long_open_prs` detection that uses `ageH > row.medianHours`.
@@ -291,7 +295,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/metrics/pr-cycle-time-dashboard.test.ts`
 
 #### Task 1.4 — Team-filtered stale open PR expansion
-- [ ] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
+- [x] **File**: `src/metrics/pr-cycle-time-dashboard.ts`
 - **Depends on**: Task 1.3
 - **Description**:
   - When `input.team === row.team`, pass `STALE_OPEN_PR_TEAM_FILTER_DETAIL_LIMIT`.
@@ -309,7 +313,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 > **Releasable**: when Task 2.3 is complete, users can see stale open PR details in the PR Cycle Time exceptions card.
 
 #### Task 2.1 — Stale open PR detail UI rendering
-- [ ] **File**: `src/components/dashboard/PrCycleTimeDashboard.tsx`
+- [x] **File**: `src/components/dashboard/PrCycleTimeDashboard.tsx`
 - **Depends on**: Task 1.3
 - **Description**:
   - Change `exceptionTitle` for `long_open_prs` to `{team} stale open PRs`.
@@ -335,7 +339,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/components/pr-cycle-time-dashboard.test.tsx`
 
 #### Task 2.2 — Stale open PR detail styling
-- [ ] **File**: `src/components/dashboard/PrCycleTimeDashboard.css`
+- [x] **File**: `src/components/dashboard/PrCycleTimeDashboard.css`
 - **Depends on**: Task 2.1
 - **Description**:
   - Add classes:
@@ -357,7 +361,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test -- tests/components/pr-cycle-time-dashboard.test.tsx`
 
 #### Task 2.3 — Exception-card copy and accessibility
-- [ ] **File**: `src/components/dashboard/PrCycleTimeDashboard.tsx`
+- [x] **File**: `src/components/dashboard/PrCycleTimeDashboard.tsx`
 - **Depends on**: Task 2.2
 - **Description**:
   - Update the PR cycle time exceptions `CardHowToRead` copy to mention stale open PRs crossing the attention threshold.
@@ -374,7 +378,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 > **Releasable**: when Task 3.3 is complete, the feature is covered by focused browser and release-gate checks.
 
 #### Task 3.1 — E2E stale open PR fixture and all-teams flow
-- [ ] **File**: `tests/e2e/stale-open-pr-exceptions.spec.ts`
+- [x] **File**: `tests/e2e/stale-open-pr-exceptions.spec.ts`
 - **Depends on**: Task 2.3
 - **Description**:
   - Add a deterministic E2E fixture that seeds:
@@ -393,7 +397,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test:e2e -- tests/e2e/stale-open-pr-exceptions.spec.ts`
 
 #### Task 3.2 — E2E team-filter expansion and mobile layout
-- [ ] **File**: `tests/e2e/stale-open-pr-exceptions.spec.ts`
+- [x] **File**: `tests/e2e/stale-open-pr-exceptions.spec.ts`
 - **Depends on**: Task 3.1
 - **Description**:
   - Extend the fixture to include at least 11 stale PRs for one selected team.
@@ -410,7 +414,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
   - Checkpoint: `npm run test:e2e -- tests/e2e/stale-open-pr-exceptions.spec.ts`
 
 #### Task 3.3 — FIX-005 verification script
-- [ ] **File**: `tests/scripts/verify-fix005.test.ts`, `package.json`
+- [x] **File**: `tests/scripts/verify-fix005.test.ts`, `package.json`
 - **Depends on**: Task 3.2
 - **Description**:
   - Add script:
@@ -426,7 +430,7 @@ export function staleOpenPrThresholdHours(teamMedianHours: number | null): numbe
 > **Releasable**: after this phase, FIX-005 can be marked complete and moved to `Documentation/Completed/` with its brief if the team chooses to ship it.
 
 #### Task 4.1 — Final verification and completion notes
-- [ ] **File**: `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`
+- [x] **File**: `Documentation/Backlog/FIX-005-stale-open-pr-exceptions.md`
 - **Depends on**: Task 3.3
 - **Description**:
   - Run:
