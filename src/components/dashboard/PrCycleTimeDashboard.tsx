@@ -4,6 +4,7 @@ import type {
   PrCycleTimeDashboard as DashboardModel,
   PrCycleTimeException,
 } from '~/metrics/pr-cycle-time-dashboard'
+import type { RefreshButtonState } from '~/server/derive-refresh-button-state'
 
 import { CardHowToRead } from '~/components/dashboard/card-how-to-read'
 import { DashboardSourceLink } from '~/components/dashboard/dashboard-source-link'
@@ -25,6 +26,7 @@ export type PrCycleTimeDashboardProps = {
   data: DashboardModel
   onRefresh?: () => void | Promise<void>
   refreshing?: boolean
+  refreshButtonState?: RefreshButtonState
   refreshError?: string | null
   activeTeam?: string
   onTeamSelect?: (team: string | undefined) => void
@@ -225,15 +227,30 @@ function exceptionTrendSnippet(e: PrCycleTimeException, teams: TeamRow[]): React
   )
 }
 
+function buildRefreshLabel(state: RefreshButtonState): string {
+  if (state.status === 'idle') return 'Refresh'
+  const base =
+    state.total > 0
+      ? `${state.phaseLabel} ${state.done}/${state.total}`
+      : state.phaseLabel || 'Refreshing…'
+  return state.errorCount > 0 ? `${base} (${state.errorCount} errors)` : base
+}
+
 /** Top-level dashboard component rendering all metric sections, the team-filter toolbar, and the freshness footer. */
 export function PrCycleTimeDashboard({
   data,
   onRefresh,
   refreshing = false,
+  refreshButtonState,
   refreshError = null,
   activeTeam,
   onTeamSelect,
 }: PrCycleTimeDashboardProps) {
+  const btnState: RefreshButtonState =
+    refreshButtonState ??
+    (refreshing
+      ? { status: 'running', phaseLabel: 'Refreshing', done: 0, total: 0, inFlightRepos: [], errorCount: 0 }
+      : { status: 'idle' })
   const nowMs = Date.now()
   const noRepos = data.freshness.reposScanned === 0
   const noMerged = !noRepos && data.metric.mergedPrCount === 0
@@ -309,11 +326,20 @@ export function PrCycleTimeDashboard({
                   <button
                     type="button"
                     className="pr-dashboard__btn-refresh"
-                    onClick={() => void onRefresh()}
-                    disabled={refreshing}
+                    onClick={btnState.status === 'idle' ? () => void onRefresh() : undefined}
+                    aria-disabled={btnState.status === 'running' || undefined}
                   >
                     <IconRefresh />
-                    {refreshing ? 'Refreshing…' : 'Refresh'}
+                    {buildRefreshLabel(btnState)}
+                    {btnState.status === 'running' && btnState.inFlightRepos.length > 0 && (
+                      <span role="tooltip" className="pr-dashboard__refresh-tooltip">
+                        {btnState.inFlightRepos.map((r) => (
+                          <span key={r} className="pr-dashboard__refresh-tooltip-repo">
+                            {r}
+                          </span>
+                        ))}
+                      </span>
+                    )}
                   </button>
                 ) : null}
               </div>

@@ -5,6 +5,13 @@ Last updated: 2026-06-04
 
 This document is for engineers working on the **Data Driven Decision Dashboard** codebase. Product direction and phased scope live under [Documentation/README.md](../README.md), the [trackable roadmap](../Roadmap/trackable-roadmap.md), and the active backlog phase.
 
+## Before you run
+
+These files must exist before starting the dev server or Docker stack — create them from their examples if missing:
+
+- `.env` — copy from `.env.example`
+- `config/team-mapping.json` — copy from `config/team-mapping.example.json`
+
 ## Prerequisites
 
 - **Node.js** 20.19 or newer, or 22.12 or newer (the stack uses Vite 8 and modern ESM).

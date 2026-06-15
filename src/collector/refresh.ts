@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import path from 'node:path'
-import { and, eq, max } from 'drizzle-orm'
+import { and, eq, max, sql } from 'drizzle-orm'
 
 import { GitHubClient } from '~/collector/github-client'
 import { discoverRepositories } from '~/collector/repo-discovery'
@@ -14,6 +14,45 @@ import { loadTeamMapping } from '~/config/team-mapping'
 import { createDb } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 
+/** Thrown when a second refresh is attempted while one is already running. */
+export class AlreadyRunningError extends Error {
+  override name = 'AlreadyRunningError'
+  readonly startedAt: Date
+  readonly elapsedSeconds: number
+
+  constructor(startedAt: Date) {
+    const elapsedSeconds = Math.floor((Date.now() - startedAt.getTime()) / 1000)
+    super(`A refresh is already running (started ${elapsedSeconds}s ago, status: running). Aborting.`)
+    this.startedAt = startedAt
+    this.elapsedSeconds = elapsedSeconds
+  }
+}
+
+export type ProgressEvent =
+  | { type: 'phase_start'; phase: string; total: number }
+  | {
+      type: 'repo_done'
+      phase: string
+      repo: string
+      done: number
+      total: number
+      inFlightRepos: string[]
+      errorCount: number
+    }
+
+/** Returns true if the error represents a PostgreSQL unique-constraint violation (code 23505). */
+function isUniqueViolation(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const cause = (err as { cause?: unknown }).cause
+  if (typeof cause === 'object' && cause !== null && 'code' in cause) {
+    return String((cause as { code: unknown }).code) === '23505'
+  }
+  return 'code' in err && String((err as { code: unknown }).code) === '23505'
+}
+
+const HEARTBEAT_INTERVAL_MS = 10_000
+const ZOMBIE_TTL_SECONDS = 120
+
 export type RefreshSummary = {
   reposScanned: number
   reposIncluded: number
@@ -26,8 +65,10 @@ export type RefreshSummary = {
   status: 'success' | 'partial' | 'failed'
   reviewSyncErrors: number
   sizeSyncErrors: number
+  phaseTimingsMs: Record<string, number>
 }
 
+/** Merges optional AppEnv overrides into the current process.env, returning a new env object. */
 function buildProcessEnvFromPartial(partial?: Partial<AppEnv>): NodeJS.ProcessEnv {
   const e: NodeJS.ProcessEnv = { ...process.env }
   if (!partial) {
@@ -53,6 +94,7 @@ function buildProcessEnvFromPartial(partial?: Partial<AppEnv>): NodeJS.ProcessEn
   return e
 }
 
+/** Processes items with at most `limit` workers running concurrently. */
 async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
   if (items.length === 0) return
   const n = Math.max(1, Math.min(limit, items.length))
@@ -72,7 +114,10 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
  * Scans local repositories, upserts metadata, syncs GitHub PRs for `ready`
  * repositories, and records sync run / error rows.
  */
-export async function refreshLocalData(input?: Partial<AppEnv>): Promise<RefreshSummary> {
+export async function refreshLocalData(
+  input?: Partial<AppEnv>,
+  opts?: { heartbeatIntervalMs?: number; onProgress?: (event: ProgressEvent) => void },
+): Promise<RefreshSummary> {
   const mergedEnv = buildProcessEnvFromPartial(input)
   const env = getEnv(mergedEnv)
   const db = createDb(env.databaseUrl)
@@ -102,6 +147,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
         status: 'success',
         reviewSyncErrors: 0,
         sizeSyncErrors: 0,
+        phaseTimingsMs: {},
       }
     } finally {
       await db.$client.end({ timeout: 5 })
@@ -120,9 +166,14 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
     status: 'failed',
     reviewSyncErrors: 0,
     sizeSyncErrors: 0,
+    phaseTimingsMs: {},
   }
 
   let syncRunId: string | null = null
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  let localErrorCount = 0
+  const phaseTimings: Record<string, number> = {}
+  const inFlight = new Set<string>()
 
   const insertError = async (repositoryId: string | null, source: string, message: string) => {
     if (syncRunId === null) return
@@ -132,27 +183,68 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
       source,
       message,
     })
+    localErrorCount++
   }
 
   try {
-    const mapping = await loadTeamMapping(env.teamMappingPath)
-    const repoRoot = path.resolve(env.repoRoot)
-    const candidates = await discoverRepositories(repoRoot)
+    // Expire any zombie running rows (heartbeat stale or missing + old startedAt)
+    const zombieTtlSql = sql.raw(`interval '${ZOMBIE_TTL_SECONDS} seconds'`)
+    await db
+      .update(syncRuns)
+      .set({ status: 'failed', finishedAt: new Date(), message: 'zombie_expired' })
+      .where(
+        and(
+          eq(syncRuns.kind, 'collector_refresh'),
+          eq(syncRuns.status, 'running'),
+          sql`(${syncRuns.heartbeat} < now() - ${zombieTtlSql} OR (${syncRuns.heartbeat} IS NULL AND ${syncRuns.startedAt} < now() - ${zombieTtlSql}))`,
+        ),
+      )
 
+    // Claim the single-flight slot — unique partial index rejects a second running row
     const startedAt = new Date()
     const newRunId = randomUUID()
-    await db.insert(syncRuns).values({
-      id: newRunId,
-      kind: 'collector_refresh',
-      status: 'running',
-      startedAt,
-      finishedAt: null,
-      message: null,
-      errorCount: 0,
-    })
+    try {
+      await db.insert(syncRuns).values({
+        id: newRunId,
+        kind: 'collector_refresh',
+        status: 'running',
+        startedAt,
+        finishedAt: null,
+        message: null,
+        errorCount: 0,
+      })
+    } catch (claimErr) {
+      if (isUniqueViolation(claimErr)) {
+        const [existing] = await db
+          .select({ startedAt: syncRuns.startedAt })
+          .from(syncRuns)
+          .where(and(eq(syncRuns.kind, 'collector_refresh'), eq(syncRuns.status, 'running')))
+        throw new AlreadyRunningError(existing?.startedAt ?? startedAt)
+      }
+      throw claimErr
+    }
     syncRunId = newRunId
 
+    // Keep heartbeat alive so we are not mistaken for a zombie
+    const intervalMs = opts?.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS
+    heartbeatTimer = setInterval(() => {
+      db.update(syncRuns).set({ heartbeat: new Date() }).where(eq(syncRuns.id, syncRunId!)).catch(() => {})
+    }, intervalMs)
+
+    const mapping = await loadTeamMapping(env.teamMappingPath)
+    const repoRoot = path.resolve(env.repoRoot)
+
+    // Phase: scanning_repositories
+    const scanStart = Date.now()
+    const candidates = await discoverRepositories(repoRoot)
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'scanning_repositories', phaseTotal: candidates.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'scanning_repositories', total: candidates.length })
+
     const repoSync = await upsertRepositories(db, repoRoot, candidates, mapping, env.githubSyncOwner)
+    phaseTimings['scanning_repositories'] = Date.now() - scanStart
 
     summary.reposScanned = repoSync.scanned
     summary.reposIncluded = repoSync.ready
@@ -182,8 +274,18 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
     let sizeSyncPartial = false
     const reviewEligibleRepoIds = new Set<string>()
 
+    // Phase: pr_sync
+    let phaseDone = 0
+    const prSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'pr_sync', phaseTotal: syncTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'pr_sync', total: syncTargets.length })
+
     await runWithConcurrency(syncTargets, env.githubSyncConcurrency, async (repo) => {
       prSyncAttempts += 1
+      inFlight.add(repo.name)
       try {
         const last = repo.lastPrSyncedAt
         const prs = await client.listPullRequests({
@@ -213,10 +315,13 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
 
         const maxUpdated = maxRow?.m ?? null
         if (maxUpdated !== null) {
-          await db
-            .update(repositories)
-            .set({ lastPrSyncedAt: maxUpdated, updatedAt: new Date() })
-            .where(eq(repositories.id, repo.id))
+          const maxUpdatedIso = maxUpdated.toISOString()
+          await db.execute(
+            sql`UPDATE repositories
+                SET last_pr_synced_at = GREATEST(COALESCE(last_pr_synced_at, ${maxUpdatedIso}::timestamptz), ${maxUpdatedIso}::timestamptz),
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ${repo.id}`,
+          )
         }
 
         prSyncSuccesses += 1
@@ -224,45 +329,127 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         await insertError(repo.id, 'github_sync', msg)
+      } finally {
+        phaseDone += 1
+        inFlight.delete(repo.name)
+        const snapshot = [...inFlight]
+        await db
+          .update(syncRuns)
+          .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+          .where(eq(syncRuns.id, syncRunId!))
+        opts?.onProgress?.({
+          type: 'repo_done',
+          phase: 'pr_sync',
+          repo: repo.name,
+          done: phaseDone,
+          total: syncTargets.length,
+          inFlightRepos: snapshot,
+          errorCount: localErrorCount,
+        })
       }
     })
+    phaseTimings['pr_sync'] = Date.now() - prSyncStart
 
     const reviewTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
+
+    // Phase: review_sync
+    phaseDone = 0
+    inFlight.clear()
+    const reviewSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'review_sync', phaseTotal: reviewTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'review_sync', total: reviewTargets.length })
+
     if (reviewTargets.length > 0) {
       const reviewNow = new Date()
       await runWithConcurrency(reviewTargets, env.githubSyncConcurrency, async (repo) => {
-        const result = await syncRepositoryReviews(
-          db,
-          { client, now: reviewNow, syncRunId: syncRunId! },
-          {
-            id: repo.id,
-            owner: repo.owner,
-            repo: repo.repo,
-            lastReviewSyncedAt: repo.lastReviewSyncedAt,
-          },
-        )
-        summary.reviewSyncErrors += result.perPrErrors.length
-      })
-    }
-
-    const sizeTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
-    if (sizeTargets.length > 0) {
-      await runWithConcurrency(sizeTargets, env.githubSyncConcurrency, async (repo) => {
-        const counts = await syncRepositoryPrSizes({
-          db,
-          repoPath: repo.path,
-          repositoryId: repo.id,
-          owner: repo.owner!,
-          repo: repo.repo!,
-          syncRunId: syncRunId!,
-          githubClient: client,
-        })
-        summary.sizeSyncErrors += counts.failed
-        if (isPrSizeSyncPartial(counts)) {
-          sizeSyncPartial = true
+        inFlight.add(repo.name)
+        try {
+          const result = await syncRepositoryReviews(
+            db,
+            { client, now: reviewNow, syncRunId: syncRunId! },
+            {
+              id: repo.id,
+              owner: repo.owner,
+              repo: repo.repo,
+              lastReviewSyncedAt: repo.lastReviewSyncedAt,
+            },
+          )
+          summary.reviewSyncErrors += result.perPrErrors.length
+        } finally {
+          phaseDone += 1
+          inFlight.delete(repo.name)
+          const snapshot = [...inFlight]
+          await db
+            .update(syncRuns)
+            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+            .where(eq(syncRuns.id, syncRunId!))
+          opts?.onProgress?.({
+            type: 'repo_done',
+            phase: 'review_sync',
+            repo: repo.name,
+            done: phaseDone,
+            total: reviewTargets.length,
+            inFlightRepos: snapshot,
+            errorCount: localErrorCount,
+          })
         }
       })
     }
+    phaseTimings['review_sync'] = Date.now() - reviewSyncStart
+
+    const sizeTargets = syncTargets.filter((r) => reviewEligibleRepoIds.has(r.id))
+
+    // Phase: pr_size_sync
+    phaseDone = 0
+    inFlight.clear()
+    const sizeSyncStart = Date.now()
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'pr_size_sync', phaseTotal: sizeTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'pr_size_sync', total: sizeTargets.length })
+
+    if (sizeTargets.length > 0) {
+      await runWithConcurrency(sizeTargets, env.githubSyncConcurrency, async (repo) => {
+        inFlight.add(repo.name)
+        try {
+          const counts = await syncRepositoryPrSizes({
+            db,
+            repoPath: repo.path,
+            repositoryId: repo.id,
+            owner: repo.owner!,
+            repo: repo.repo!,
+            syncRunId: syncRunId!,
+            githubClient: client,
+          })
+          summary.sizeSyncErrors += counts.failed
+          if (isPrSizeSyncPartial(counts)) {
+            sizeSyncPartial = true
+          }
+        } finally {
+          phaseDone += 1
+          inFlight.delete(repo.name)
+          const snapshot = [...inFlight]
+          await db
+            .update(syncRuns)
+            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+            .where(eq(syncRuns.id, syncRunId!))
+          opts?.onProgress?.({
+            type: 'repo_done',
+            phase: 'pr_size_sync',
+            repo: repo.name,
+            done: phaseDone,
+            total: sizeTargets.length,
+            inFlightRepos: snapshot,
+            errorCount: localErrorCount,
+          })
+        }
+      })
+    }
+    phaseTimings['pr_size_sync'] = Date.now() - sizeSyncStart
 
     const errorRows = await db.select({ id: syncErrors.id }).from(syncErrors).where(eq(syncErrors.syncRunId, syncRunId))
     const errorRowCount = errorRows.length
@@ -288,12 +475,15 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
         errorCount: errorRowCount,
         status: runStatus,
         message: null,
+        phaseTimings,
       })
       .where(eq(syncRuns.id, syncRunId))
 
     summary.status = runStatus
+    summary.phaseTimingsMs = phaseTimings
     return summary
   } catch (err) {
+    if (err instanceof AlreadyRunningError) throw err
     const msg = err instanceof Error ? err.message : String(err)
     if (syncRunId !== null) {
       await insertError(null, 'refresh_orchestration', msg)
@@ -312,6 +502,7 @@ export async function refreshLocalData(input?: Partial<AppEnv>): Promise<Refresh
     summary.status = 'failed'
     return summary
   } finally {
+    if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
     await db.$client.end({ timeout: 5 })
   }
 }

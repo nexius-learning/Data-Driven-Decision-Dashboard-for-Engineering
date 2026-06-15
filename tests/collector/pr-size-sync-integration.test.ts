@@ -84,7 +84,7 @@ describe('syncRepositoryPrSizes integration', () => {
     const [run] = await db
       .insert(syncRuns)
       .values({
-        kind: 'collector_refresh',
+        kind: `test_size_${crypto.randomUUID()}`,
         status: 'running',
         startedAt: new Date(),
       })

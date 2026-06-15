@@ -1,8 +1,10 @@
+import { sql } from 'drizzle-orm'
 import {
   bigint,
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -38,15 +40,27 @@ export const repositories = pgTable('repositories', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const syncRuns = pgTable('sync_runs', {
-  id: uuid('id').defaultRandom().primaryKey(),
-  kind: text('kind').notNull(),
-  status: text('status').notNull(),
-  startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-  finishedAt: timestamp('finished_at', { withTimezone: true }),
-  message: text('message'),
-  errorCount: integer('error_count').notNull().default(0),
-})
+export const syncRuns = pgTable(
+  'sync_runs',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    kind: text('kind').notNull(),
+    status: text('status').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    finishedAt: timestamp('finished_at', { withTimezone: true }),
+    message: text('message'),
+    errorCount: integer('error_count').notNull().default(0),
+    heartbeat: timestamp('heartbeat', { withTimezone: true }),
+    currentPhase: text('current_phase'),
+    phaseDone: integer('phase_done'),
+    phaseTotal: integer('phase_total'),
+    inFlightRepos: jsonb('in_flight_repos').$type<string[]>(),
+    phaseTimings: jsonb('phase_timings').$type<Record<string, number>>(),
+  },
+  (table) => [
+    uniqueIndex('sync_runs_one_running_per_kind').on(table.kind).where(sql`${table.status} = 'running'`),
+  ],
+)
 
 export const pullRequests = pgTable(
   'pull_requests',

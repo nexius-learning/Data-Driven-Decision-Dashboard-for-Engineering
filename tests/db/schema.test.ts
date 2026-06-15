@@ -15,6 +15,12 @@ describe('db schema', () => {
     expect(repositories.path.isUnique).toBe(true)
   })
 
+  it('schema_sync_runs_defines_heartbeat', () => {
+    const cols = getTableColumns(syncRuns)
+    expect(cols).toHaveProperty('heartbeat')
+    expect(cols.heartbeat?.getSQLType().toLowerCase()).toContain('time zone')
+  })
+
   it('schema_timestamps_use_timestamptz', () => {
     const tables = [repositories, pullRequests, syncRuns, syncErrors] as const
     for (const table of tables) {
