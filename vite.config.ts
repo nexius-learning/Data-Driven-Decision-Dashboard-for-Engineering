@@ -23,6 +23,9 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 3000,
       host: '127.0.0.1',
+      allowedHosts: process.env.DASHBOARD_ALLOWED_HOST
+        ? [process.env.DASHBOARD_ALLOWED_HOST]
+        : undefined,
     },
     resolve: {
       alias: {
