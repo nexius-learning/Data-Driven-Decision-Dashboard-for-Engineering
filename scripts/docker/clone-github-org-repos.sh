@@ -91,11 +91,11 @@ while :; do
   fi
 done
 
-echo "==> filtering against config/team-mapping.json"
+echo "==> filtering against ${TEAM_MAPPING_PATH:-./config/team-mapping.json}"
 node -e "
 const fs = require('fs');
 const path = require('path');
-const cfg = JSON.parse(fs.readFileSync('./config/team-mapping.json','utf8'));
+const cfg = JSON.parse(fs.readFileSync('${TEAM_MAPPING_PATH:-./config/team-mapping.json}','utf8'));
 const files = fs.readdirSync('$WORK').filter(f=>f.startsWith('p') && f.endsWith('.json')).sort();
 let all = [];
 for (const f of files) {
