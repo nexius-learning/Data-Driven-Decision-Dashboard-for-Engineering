@@ -68,6 +68,7 @@ describe('refresh', () => {
     listSpy = vi.spyOn(GitHubClient.prototype, 'listPullRequests').mockResolvedValue([])
     vi.spyOn(GitHubClient.prototype, 'listPullRequestReviews').mockResolvedValue([])
     vi.spyOn(GitHubClient.prototype, 'listPullRequestReviewComments').mockResolvedValue([])
+    vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([])
     vi.spyOn(prSizeSync, 'syncRepositoryPrSizes').mockResolvedValue({
       ok: 0,
       skipped: 0,

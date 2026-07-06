@@ -39,6 +39,11 @@ export type GitHubClientListPullRequestReviewsInput = {
   pullNumber: number
 }
 
+export type GitHubOrgRepo = {
+  name: string
+  archived: boolean
+}
+
 export type GitHubSyncErrorCode = 'rate_limited' | 'unauthorized' | 'forbidden' | 'unknown'
 
 export class GitHubSyncError extends Error {
@@ -239,6 +244,14 @@ function normalizeReview(raw: Record<string, unknown>): GitHubReview {
   return { id, state: state as GitHubReviewState, submittedAt: submitted, user }
 }
 
+function normalizeOrgRepo(raw: Record<string, unknown>): GitHubOrgRepo {
+  const name = raw.name
+  if (typeof name !== 'string' || name.length === 0) {
+    throw new GitHubSyncError({ code: 'unknown', message: 'GitHub org repo missing name' })
+  }
+  return { name, archived: raw.archived === true }
+}
+
 function normalizeReviewComment(raw: Record<string, unknown>): GitHubReviewComment {
   const id = raw.id
   const createdAt = raw.created_at
@@ -333,6 +346,14 @@ export class GitHubClient {
     this.token = options.token
     this.baseUrl = trimTrailingSlash(options.baseUrl)
     this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis)
+  }
+
+  /** Lists all repositories (including private/archived) visible to the token for `owner`. */
+  async listOrgRepositories(owner: string): Promise<GitHubOrgRepo[]> {
+    return this.paginatedGet<GitHubOrgRepo>(
+      `/orgs/${encodeURIComponent(owner)}/repos?type=all`,
+      normalizeOrgRepo,
+    )
   }
 
   async listPullRequestReviews(

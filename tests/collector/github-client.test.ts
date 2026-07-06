@@ -546,4 +546,51 @@ describe('github-client', () => {
     expect(url.startsWith('https://api.github.com/repos/o/r/pulls')).toBe(true)
     expect(url).not.toContain('api.github.com//')
   })
+
+  it('github_client_lists_org_repositories', async () => {
+    const body = [
+      { name: 'svc-a', archived: false },
+      { name: 'svc-b', archived: true },
+    ]
+    const fetchImpl = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      void input
+      return jsonResponse(body)
+    })
+    const client = new GitHubClient({ baseUrl: 'https://api.github.com', fetchImpl })
+
+    const repos = await client.listOrgRepositories('acme')
+
+    expect(repos).toEqual([
+      { name: 'svc-a', archived: false },
+      { name: 'svc-b', archived: true },
+    ])
+    const url = requestUrl(fetchImpl.mock.calls[0]![0] as Parameters<typeof fetch>[0])
+    expect(url).toContain('/orgs/acme/repos')
+    expect(url).toContain('type=all')
+  })
+
+  it('github_client_org_repositories_paginates', async () => {
+    const page1 = [{ name: 'r1', archived: false }]
+    const page2 = [{ name: 'r2', archived: false }]
+    const fetchImpl = vi.fn(async (input: Parameters<typeof fetch>[0]) => {
+      const u = requestUrl(input)
+      if (new URL(u).searchParams.get('page') !== '2') {
+        return jsonResponse(page1, {
+          headers: { Link: '<https://api.github.com/orgs/acme/repos?type=all&per_page=100&page=2>; rel="next"' },
+        })
+      }
+      return jsonResponse(page2)
+    })
+    const client = new GitHubClient({ baseUrl: 'https://api.github.com', fetchImpl })
+
+    const repos = await client.listOrgRepositories('acme')
+
+    expect(repos.map((r) => r.name)).toEqual(['r1', 'r2'])
+  })
+
+  it('github_client_org_repositories_rejects_missing_name', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse([{ archived: false }]))
+    const client = new GitHubClient({ baseUrl: 'https://api.github.com', fetchImpl })
+    await expect(client.listOrgRepositories('acme')).rejects.toThrow(/missing name/)
+  })
 })

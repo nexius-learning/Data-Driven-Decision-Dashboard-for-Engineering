@@ -20,6 +20,7 @@ export type RefreshButtonState =
     }
 
 const PHASE_LABELS: Record<string, string> = {
+  cloning_repositories: 'Cloning repositories…',
   scanning_repositories: 'Scanning repositories…',
   pr_sync: 'Syncing pull requests',
   review_sync: 'Syncing reviews',

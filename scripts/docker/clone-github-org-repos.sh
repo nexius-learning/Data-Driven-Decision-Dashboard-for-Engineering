@@ -169,7 +169,11 @@ while IFS= read -r name; do
       continue
     fi
     printf '  [%d/%d] repair %s (broken clone — re-cloning)\n' "$i" "$total" "$name"
-    rm -rf "$target"
+    if ! rm -rf "$target" 2>"$WORK/rm.err"; then
+      echo "error: failed to remove broken clone at $target:" >&2
+      sed 's/^/      /' "$WORK/rm.err" >&2 || true
+      exit 1
+    fi
     repaired=$((repaired + 1))
   fi
 

@@ -79,6 +79,7 @@ describe('refresh size sync integration', () => {
     listSpy = vi.spyOn(GitHubClient.prototype, 'listPullRequests').mockResolvedValue([])
     reviewsSpy = vi.spyOn(GitHubClient.prototype, 'listPullRequestReviews').mockResolvedValue([])
     vi.spyOn(GitHubClient.prototype, 'listPullRequestReviewComments').mockResolvedValue([])
+    vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([])
     reviewSyncSpy = vi.spyOn(reviewSync, 'syncRepositoryReviews').mockResolvedValue({
       status: 'success',
       perPrErrors: [],

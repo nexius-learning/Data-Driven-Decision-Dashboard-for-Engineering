@@ -9,6 +9,7 @@ import { GitHubClient } from '~/collector/github-client'
 import * as prSizeSync from '~/collector/pr-size-sync'
 import { refreshLocalData } from '~/collector/refresh'
 import type { ProgressEvent } from '~/collector/refresh'
+import * as repoClone from '~/collector/repo-clone'
 import { createDb, runMigrations } from '~/db/client'
 import { syncErrors, pullRequests, repositories, syncRuns } from '~/db/schema'
 
@@ -51,6 +52,7 @@ describe('refresh progress', () => {
     vi.spyOn(GitHubClient.prototype, 'listPullRequests').mockResolvedValue([])
     vi.spyOn(GitHubClient.prototype, 'listPullRequestReviews').mockResolvedValue([])
     vi.spyOn(GitHubClient.prototype, 'listPullRequestReviewComments').mockResolvedValue([])
+    vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([])
     vi.spyOn(prSizeSync, 'syncRepositoryPrSizes').mockResolvedValue({ ok: 0, skipped: 0, failed: 0 })
   })
 
@@ -60,6 +62,59 @@ describe('refresh progress', () => {
     await db.delete(pullRequests)
     await db.delete(repositories)
     await db.delete(syncRuns)
+  })
+
+  it('refresh_clones_repos_returned_by_org_listing_before_scanning', async () => {
+    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'prog-clone-'))
+    const mappingPath = await writeMapping(root)
+    try {
+      vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([
+        { name: 'svc', archived: false },
+        { name: 'archived-svc', archived: true },
+      ])
+      const cloneSpy = vi.spyOn(repoClone, 'cloneOrUpdateRepository').mockResolvedValue('cloned')
+      const events: ProgressEvent[] = []
+      await refreshLocalData(
+        { databaseUrl: databaseUrl!, repoRoot: root, teamMappingPath: mappingPath, githubSyncOwner: 'org' },
+        { onProgress: (e) => events.push(e) },
+      )
+      // Only the non-archived repo matching the mapping's team patterns is cloned.
+      expect(cloneSpy).toHaveBeenCalledTimes(1)
+      expect(cloneSpy).toHaveBeenCalledWith(path.resolve(root), 'org', 'svc')
+
+      const phaseStarts = events.filter((e) => e.type === 'phase_start').map((e) => e.phase)
+      const cloneIdx = phaseStarts.indexOf('cloning_repositories')
+      const scanIdx = phaseStarts.indexOf('scanning_repositories')
+      expect(cloneIdx).toBeGreaterThanOrEqual(0)
+      expect(cloneIdx).toBeLessThan(scanIdx)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refresh_records_a_sync_error_and_continues_when_one_clone_fails', async () => {
+    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'prog-clone-err-'))
+    const mappingPath = await writeMapping(root)
+    try {
+      vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([
+        { name: 'good', archived: false },
+        { name: 'bad', archived: false },
+      ])
+      vi.spyOn(repoClone, 'cloneOrUpdateRepository').mockImplementation(async (_root, _owner, name) => {
+        if (name === 'bad') throw new Error('clone failed')
+        return 'cloned'
+      })
+      const events: ProgressEvent[] = []
+      const summary = await refreshLocalData(
+        { databaseUrl: databaseUrl!, repoRoot: root, teamMappingPath: mappingPath, githubSyncOwner: 'org' },
+        { onProgress: (e) => events.push(e) },
+      )
+      const cloneDone = events.filter((e) => e.type === 'repo_done' && e.phase === 'cloning_repositories')
+      expect(cloneDone).toHaveLength(2)
+      expect(summary.syncErrors).toBeGreaterThan(0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   })
 
   it('refresh_emits_phase_start_events_for_all_phases', async () => {

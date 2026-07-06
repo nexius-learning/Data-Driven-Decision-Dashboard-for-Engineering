@@ -4,6 +4,7 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { eq, inArray } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { GitHubClient } from '~/collector/github-client'
 import { refreshLocalData } from '~/collector/refresh'
 import { createDb, runMigrations } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
@@ -83,6 +84,7 @@ describe('dashboard server integration', () => {
     )
     vi.stubEnv('DASHBOARD_REPO_ROOT', testRoot)
     vi.stubEnv('TEAM_MAPPING_PATH', mappingPath)
+    vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([])
   })
 
   afterEach(async () => {

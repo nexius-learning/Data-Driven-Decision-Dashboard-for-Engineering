@@ -4,13 +4,14 @@ import { and, eq, max, sql } from 'drizzle-orm'
 
 import { GitHubClient } from '~/collector/github-client'
 import { discoverRepositories } from '~/collector/repo-discovery'
+import { cloneOrUpdateRepository } from '~/collector/repo-clone'
 import { upsertPullRequests } from '~/collector/pull-request-store'
 import { upsertRepositories } from '~/collector/repository-store'
 import { isPrSizeSyncPartial, syncRepositoryPrSizes } from '~/collector/pr-size-sync'
 import { syncRepositoryReviews } from '~/collector/review-sync'
 import type { AppEnv } from '~/config/env'
 import { getEnv } from '~/config/env'
-import { loadTeamMapping } from '~/config/team-mapping'
+import { loadTeamMapping, shouldSyncRepo } from '~/config/team-mapping'
 import { createDb } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 
@@ -234,6 +235,51 @@ export async function refreshLocalData(
     const mapping = await loadTeamMapping(env.teamMappingPath)
     const repoRoot = path.resolve(env.repoRoot)
 
+    const client = new GitHubClient({
+      token: env.githubToken,
+      baseUrl: env.githubApiBaseUrl,
+    })
+
+    // Phase: cloning_repositories
+    const cloneStart = Date.now()
+    const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
+    const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
+
+    let phaseDone = 0
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'cloning_repositories', phaseTotal: cloneTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
+
+    await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
+      inFlight.add(repo.name)
+      try {
+        await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        await insertError(null, 'repo_clone', msg)
+      } finally {
+        phaseDone += 1
+        inFlight.delete(repo.name)
+        const snapshot = [...inFlight]
+        await db
+          .update(syncRuns)
+          .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+          .where(eq(syncRuns.id, syncRunId!))
+        opts?.onProgress?.({
+          type: 'repo_done',
+          phase: 'cloning_repositories',
+          repo: repo.name,
+          done: phaseDone,
+          total: cloneTargets.length,
+          inFlightRepos: snapshot,
+          errorCount: localErrorCount,
+        })
+      }
+    })
+    phaseTimings['cloning_repositories'] = Date.now() - cloneStart
+
     // Phase: scanning_repositories
     const scanStart = Date.now()
     const candidates = await discoverRepositories(repoRoot)
@@ -264,18 +310,13 @@ export async function refreshLocalData(
 
     const syncTargets = readyRows.filter((r) => r.owner && r.repo)
 
-    const client = new GitHubClient({
-      token: env.githubToken,
-      baseUrl: env.githubApiBaseUrl,
-    })
-
     let prSyncSuccesses = 0
     let prSyncAttempts = 0
     let sizeSyncPartial = false
     const reviewEligibleRepoIds = new Set<string>()
 
     // Phase: pr_sync
-    let phaseDone = 0
+    phaseDone = 0
     const prSyncStart = Date.now()
     await db
       .update(syncRuns)

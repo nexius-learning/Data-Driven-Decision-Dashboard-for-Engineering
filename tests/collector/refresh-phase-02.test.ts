@@ -67,6 +67,7 @@ describe('refresh phase 02 integration', () => {
     commentsSpy = vi
       .spyOn(GitHubClient.prototype, 'listPullRequestReviewComments')
       .mockResolvedValue([])
+    vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([])
     vi.spyOn(prSizeSync, 'syncRepositoryPrSizes').mockResolvedValue({
       ok: 0,
       skipped: 0,
