@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { and, eq, max, sql } from 'drizzle-orm'
 
+import { withCloneLock } from '~/collector/clone-lock'
 import { GitHubClient } from '~/collector/github-client'
 import { discoverRepositories } from '~/collector/repo-discovery'
 import { cloneOrUpdateRepository } from '~/collector/repo-clone'
@@ -240,45 +241,51 @@ export async function refreshLocalData(
       baseUrl: env.githubApiBaseUrl,
     })
 
-    // Phase: cloning_repositories
+    // Phase: cloning_repositories — shared with the bash clone-cron script
+    // (scripts/docker/clone-github-org-repos.sh); skip entirely if it's
+    // already cloning into the same repoRoot instead of racing it.
     const cloneStart = Date.now()
-    const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
-    const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
-
     let phaseDone = 0
-    await db
-      .update(syncRuns)
-      .set({ currentPhase: 'cloning_repositories', phaseTotal: cloneTargets.length, phaseDone: 0, inFlightRepos: [] })
-      .where(eq(syncRuns.id, syncRunId))
-    opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
+    const cloneRun = await withCloneLock(repoRoot, async () => {
+      const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
+      const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
 
-    await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
-      inFlight.add(repo.name)
-      try {
-        await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        await insertError(null, 'repo_clone', msg)
-      } finally {
-        phaseDone += 1
-        inFlight.delete(repo.name)
-        const snapshot = [...inFlight]
-        await db
-          .update(syncRuns)
-          .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
-          .where(eq(syncRuns.id, syncRunId!))
-        opts?.onProgress?.({
-          type: 'repo_done',
-          phase: 'cloning_repositories',
-          repo: repo.name,
-          done: phaseDone,
-          total: cloneTargets.length,
-          inFlightRepos: snapshot,
-          errorCount: localErrorCount,
-        })
-      }
+      await db
+        .update(syncRuns)
+        .set({ currentPhase: 'cloning_repositories', phaseTotal: cloneTargets.length, phaseDone: 0, inFlightRepos: [] })
+        .where(eq(syncRuns.id, syncRunId!))
+      opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
+
+      await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
+        inFlight.add(repo.name)
+        try {
+          await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          await insertError(null, 'repo_clone', msg)
+        } finally {
+          phaseDone += 1
+          inFlight.delete(repo.name)
+          const snapshot = [...inFlight]
+          await db
+            .update(syncRuns)
+            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+            .where(eq(syncRuns.id, syncRunId!))
+          opts?.onProgress?.({
+            type: 'repo_done',
+            phase: 'cloning_repositories',
+            repo: repo.name,
+            done: phaseDone,
+            total: cloneTargets.length,
+            inFlightRepos: snapshot,
+            errorCount: localErrorCount,
+          })
+        }
+      })
     })
-    phaseTimings['cloning_repositories'] = Date.now() - cloneStart
+    if (cloneRun.ran) {
+      phaseTimings['cloning_repositories'] = Date.now() - cloneStart
+    }
 
     // Phase: scanning_repositories
     const scanStart = Date.now()

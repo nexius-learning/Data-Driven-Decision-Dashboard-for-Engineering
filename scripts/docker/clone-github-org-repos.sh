@@ -59,12 +59,44 @@ fi
 REPO_ROOT="${DASHBOARD_REPO_ROOT%/}"
 mkdir -p "$REPO_ROOT"
 
+# Coordinate with the web app's own cloning phase (src/collector/clone-lock.ts),
+# which can clone into $REPO_ROOT too when triggered via the Refresh button/CLI.
+# The flock above only serialises two invocations of THIS script; it can't see
+# that separate Node process. mkdir is atomic even over the Azure Files SMB
+# mount this runs on in production, so both sides use this directory as a
+# portable cross-process/cross-language mutex. A lock older than
+# STALE_LOCK_SECONDS is assumed abandoned by a crashed writer and reclaimed,
+# rather than blocking clones forever.
+SHARED_LOCK_DIR="$REPO_ROOT/.clone-in-progress"
+STALE_LOCK_SECONDS=7200
+
+acquire_shared_lock() {
+  if mkdir "$SHARED_LOCK_DIR" 2>/dev/null; then
+    return 0
+  fi
+  local started_at started_epoch now_epoch
+  started_at="$(cat "$SHARED_LOCK_DIR/started-at" 2>/dev/null || echo '')"
+  started_epoch="$(date -u -d "$started_at" +%s 2>/dev/null || echo 0)"
+  now_epoch="$(date -u +%s)"
+  if [[ "$started_epoch" -gt 0 ]] && (( now_epoch - started_epoch < STALE_LOCK_SECONDS )); then
+    return 1
+  fi
+  rm -rf "$SHARED_LOCK_DIR"
+  mkdir "$SHARED_LOCK_DIR"
+}
+
+if ! acquire_shared_lock; then
+  echo "==> another clone is in progress (web Refresh or CLI); exiting cleanly"
+  exit 0
+fi
+date -u +%Y-%m-%dT%H:%M:%SZ > "$SHARED_LOCK_DIR/started-at"
+
 echo "==> clone target: $REPO_ROOT"
 echo "==> org:          $GITHUB_SYNC_OWNER"
 echo "==> api:          $GITHUB_API_BASE_URL"
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "$WORK" "$SHARED_LOCK_DIR"' EXIT
 
 echo "==> fetching org repo list"
 page=1
