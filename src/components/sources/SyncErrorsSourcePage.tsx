@@ -17,6 +17,7 @@ export function SyncErrorsSourcePage() {
       ) : (
         <p className="source-page__meta">
           Sync finished {syncRun.finishedAt ?? '—'} · status {syncRun.status}
+          {syncRun.mode !== 'full' ? ' · clone-only run (may not match "last synced")' : null}
         </p>
       )}
       {rows.length === 0 ? (

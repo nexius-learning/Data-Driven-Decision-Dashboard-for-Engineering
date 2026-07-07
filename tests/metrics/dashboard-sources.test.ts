@@ -6,7 +6,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 
 import { createDb, runMigrations } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
-import { getMergedPrsSource, getReposSource, getSyncErrorsSource } from '~/metrics/dashboard-sources'
+import { getLatestSyncSource, getMergedPrsSource, getReposSource, getSyncErrorsSource } from '~/metrics/dashboard-sources'
 
 const databaseUrl = process.env.DATABASE_URL?.trim()
 
@@ -129,5 +129,116 @@ describe('dashboard-sources', () => {
     const result = await getSyncErrorsSource({ db })
     expect(result.rows).toHaveLength(1)
     expect(result.rows[0]?.message).toBe('rate limit exceeded')
+  })
+
+  it('latest_sync_source_ignores_a_clone_only_run_that_finished_after_a_full_run', async () => {
+    const fullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: fullRunId,
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'full',
+      startedAt: new Date('2026-05-14T10:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T10:05:00.000Z'),
+      errorCount: 0,
+    })
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'clone_only',
+      startedAt: new Date('2026-05-14T11:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T11:05:00.000Z'),
+      errorCount: 0,
+    })
+
+    const result = await getLatestSyncSource({ db })
+    expect(result?.id).toBe(fullRunId)
+  })
+
+  it('latest_sync_source_returns_a_full_run_that_finished_after_a_clone_only_run', async () => {
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'clone_only',
+      startedAt: new Date('2026-05-14T09:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T09:05:00.000Z'),
+      errorCount: 0,
+    })
+    const fullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: fullRunId,
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'full',
+      startedAt: new Date('2026-05-14T10:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T10:05:00.000Z'),
+      errorCount: 0,
+    })
+
+    const result = await getLatestSyncSource({ db })
+    expect(result?.id).toBe(fullRunId)
+  })
+
+  it('latest_sync_source_surfaces_a_full_run_that_failed_before_finishing_any_phase', async () => {
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'clone_only',
+      startedAt: new Date('2026-05-14T09:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T09:05:00.000Z'),
+      errorCount: 0,
+    })
+    const failedFullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: failedFullRunId,
+      kind: 'collector_refresh',
+      status: 'failed',
+      mode: 'full',
+      startedAt: new Date('2026-05-14T10:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T10:00:05.000Z'),
+      message: 'connect ETIMEDOUT',
+      errorCount: 1,
+    })
+
+    const result = await getLatestSyncSource({ db })
+    expect(result?.id).toBe(failedFullRunId)
+    expect(result?.status).toBe('failed')
+  })
+
+  it('sync_errors_source_uses_the_latest_run_of_any_mode_not_just_full_runs', async () => {
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'full',
+      startedAt: new Date('2026-05-14T10:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T10:05:00.000Z'),
+      errorCount: 0,
+    })
+    const cloneOnlyRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: cloneOnlyRunId,
+      kind: 'collector_refresh',
+      status: 'failed',
+      mode: 'clone_only',
+      startedAt: new Date('2026-05-14T11:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T11:05:00.000Z'),
+      errorCount: 1,
+    })
+    await db.insert(syncErrors).values({
+      syncRunId: cloneOnlyRunId,
+      repositoryId: null,
+      source: 'repo_clone',
+      message: 'repository not found',
+    })
+
+    const result = await getSyncErrorsSource({ db })
+    expect(result.syncRun?.id).toBe(cloneOnlyRunId)
+    expect(result.syncRun?.mode).toBe('clone_only')
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.message).toBe('repository not found')
   })
 })
