@@ -270,7 +270,7 @@ export async function refreshLocalData(
     // existing single-flight guard (the sync_runs claim above); no
     // additional file-based lock layered on top. Shared kind
     // ('collector_refresh') across every mode is what makes that guard a
-    // true cross-mode mutex — see docs/adr/0001-refresh-progress-and-single-flight.md.
+    // true cross-mode mutex — see Documentation/ADR/0001-refresh-progress-and-single-flight.md.
     // Clear any staging/stale directories a prior crashed run orphaned
     // under .clone-tmp before cloning anything — single-flight guarantees
     // we're the only run touching it right now.

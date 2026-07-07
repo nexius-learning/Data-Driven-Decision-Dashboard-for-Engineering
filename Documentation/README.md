@@ -26,6 +26,7 @@ The home route renders a **one-page scrolling metric dashboard**. PR Cycle Time 
 - **[Local onboarding](Setup/local-onboarding.md)** — Postgres, env vars, team mapping, and first real sync checklist.
 - **[Scripts and CLI commands](Setup/scripts.md)** — `dev-up` / `dev-down`, migrations, `collector:refresh`, and `db:import-github`.
 - **[GitHub token setup](Setup/github-token.md)** — authenticated GitHub API access.
+- **[Architecture Decision Records](ADR/)** — durable records of significant design decisions and why alternatives were rejected.
 
 Implementation work and task-level tests are tracked in the completed phase plans: **[FEAT-001 — PR Cycle Time MVP](Completed/FEAT-001-pr-cycle-time-mvp-implementation-plan.md)**, **[FEAT-002 — First Review Time](Completed/FEAT-002-first-review-time-implementation-plan.md)**, **[FEAT-003 — PR Size](Completed/FEAT-003-pr-size-implementation-plan.md)**, and the completed dashboard stabilization fixes.
 

@@ -180,7 +180,7 @@ export async function cloneOrUpdateRepository(
   // gets bypassed (e.g. a zombie reclaim racing a still-alive writer). This
   // guarantee is scoped to clone/repair; the `fetchRepo` branch above writes
   // directly into `target` and relies on git's own locking instead — see
-  // docs/adr/0001-refresh-progress-and-single-flight.md.
+  // Documentation/ADR/0001-refresh-progress-and-single-flight.md.
   const tmpTarget = await cloneIntoTemp(repoRoot, owner, name)
   const staleTarget = join(repoRoot, CLONE_TMP_DIR_NAME, `${name}-stale-${randomUUID()}`)
   try {
