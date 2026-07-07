@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { access, mkdir, mkdtemp, readdir, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
@@ -19,11 +19,16 @@ async function pathExists(candidatePath: string): Promise<boolean> {
   }
 }
 
-/** Simulates `git clone <target>` by creating an empty directory there — real tests never touch the network. */
+/**
+ * Simulates `git clone <target>` by creating a directory there with a `.git`
+ * marker — real tests never touch the network. The `.git` marker matters:
+ * `isRenameRaceLoss` fingerprints `target/.git` to tell a real race loss from a
+ * genuine permission fault, so a realistic fake clone must produce one.
+ */
 function fakeCloneExec(calls: string[][]) {
   return async (args: readonly string[]) => {
     calls.push([...args])
-    await mkdir(args[args.length - 1]!, { recursive: true })
+    await mkdir(path.join(args[args.length - 1]!, '.git'), { recursive: true })
   }
 }
 
@@ -139,7 +144,7 @@ describe('cloneOrUpdateRepository', () => {
       const index = callIndex++
       cloneCalls.push([...args])
       const tmpDir = args[args.length - 1]!
-      await mkdir(tmpDir, { recursive: true })
+      await mkdir(path.join(tmpDir, '.git'), { recursive: true })
       // Each writer marks its own temp clone with a unique sentinel, so the
       // final content can be attributed to exactly one writer, not just
       // "a directory exists." The clone invoked first (index 0) finishes
@@ -209,17 +214,35 @@ describe('clearCloneTmpDir', () => {
     await rm(root, { recursive: true, force: true })
   })
 
+  const MAX_AGE_MS = 120_000
+
   it('removes_staging_directories_orphaned_by_a_prior_crashed_run', async () => {
     const orphaned = path.join(root, '.clone-tmp', 'svc-orphaned')
     await mkdir(orphaned, { recursive: true })
     await writeFile(path.join(orphaned, 'marker'), 'x', 'utf8')
+    // Backdate past the max age so it counts as an orphan from a crashed run.
+    const old = new Date(Date.now() - 10 * MAX_AGE_MS)
+    await utimes(orphaned, old, old)
 
-    await clearCloneTmpDir(root)
+    await clearCloneTmpDir(root, MAX_AGE_MS)
 
-    expect(await pathExists(path.join(root, '.clone-tmp'))).toBe(false)
+    expect(await pathExists(orphaned)).toBe(false)
+  })
+
+  it('preserves_fresh_staging_from_a_concurrent_live_run', async () => {
+    // A concurrent run's in-flight staging is younger than the max age and must
+    // survive — wiping it would corrupt that run's clone if the single-flight
+    // guard is ever bypassed, the exact case temp+rename must tolerate.
+    const inFlight = path.join(root, '.clone-tmp', 'svc-live')
+    await mkdir(inFlight, { recursive: true })
+    await writeFile(path.join(inFlight, 'marker'), 'x', 'utf8')
+
+    await clearCloneTmpDir(root, MAX_AGE_MS)
+
+    expect(await pathExists(inFlight)).toBe(true)
   })
 
   it('is_a_no_op_when_clone_tmp_does_not_exist', async () => {
-    await expect(clearCloneTmpDir(root)).resolves.toBeUndefined()
+    await expect(clearCloneTmpDir(root, MAX_AGE_MS)).resolves.toBeUndefined()
   })
 })

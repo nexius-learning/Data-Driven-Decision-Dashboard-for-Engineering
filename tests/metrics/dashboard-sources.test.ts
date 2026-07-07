@@ -241,4 +241,40 @@ describe('dashboard-sources', () => {
     expect(result.rows).toHaveLength(1)
     expect(result.rows[0]?.message).toBe('repository not found')
   })
+
+  it('sync_errors_source_prefers_a_full_run_with_errors_over_a_later_clean_clone_only_run', async () => {
+    // A clean clone-only pre-warm finishing after a full run that had errors
+    // must not bury those errors: the errors page would then show "no errors"
+    // while the freshness banner (driven by the full run) still reports them.
+    const fullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: fullRunId,
+      kind: 'collector_refresh',
+      status: 'partial',
+      mode: 'full',
+      startedAt: new Date('2026-05-14T10:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T10:05:00.000Z'),
+      errorCount: 1,
+    })
+    await db.insert(syncErrors).values({
+      syncRunId: fullRunId,
+      repositoryId: null,
+      source: 'github_sync',
+      message: 'boom',
+    })
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'clone_only',
+      startedAt: new Date('2026-05-14T11:00:00.000Z'),
+      finishedAt: new Date('2026-05-14T11:05:00.000Z'),
+      errorCount: 0,
+    })
+
+    const result = await getSyncErrorsSource({ db })
+    expect(result.syncRun?.id).toBe(fullRunId)
+    expect(result.rows).toHaveLength(1)
+    expect(result.rows[0]?.message).toBe('boom')
+  })
 })

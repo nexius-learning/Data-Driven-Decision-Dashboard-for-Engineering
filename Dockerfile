@@ -12,7 +12,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # Use Budapest local time so cron's `0 1 * * *` fires at local 01:00
-# (CET/CEST) and timestamps in [clone-cron]/[refresh-cron] log lines match the dev's wall clock.
+# (CET/CEST) and timestamps in [clone-startup]/[refresh-cron] log lines match the dev's wall clock.
 ENV TZ=Europe/Budapest
 
 # Credential helper for HTTPS GitHub fetches. Reads $GITHUB_TOKEN from the

@@ -72,13 +72,24 @@ startup from `scripts/docker/container-entrypoint.sh`, not from cron —
 so newly-added repos show up even on container recreate without
 waiting for the nightly refresh.
 
+The startup pre-warm and the 01:00 refresh share one single-flight
+guard (both are `kind = collector_refresh`). If a container happens to
+start just before 01:00 and its pre-warm is still cloning when cron
+fires, the nightly **full** refresh sees a run already in progress and
+skips that tick (logged as `rc=1` under `[refresh-cron]`) rather than
+running two writers against `/repos` — it is **not** retried until the
+next 01:00. This window is narrow (a warm cache pre-warms in seconds)
+but on an unlucky cold start it means dashboard PR data can stay stale
+until the following night; click **Refresh** in the UI or run
+`docker compose exec app npm run collector:refresh` to force it sooner.
+
 Troubleshooting:
 
 - Cron daemon alive: `docker compose exec app pgrep -a cron`
 - View schedule: `docker compose exec app cat /etc/cron.d/refresh-org-repos`
 - Force a clone now: `docker compose exec app bash scripts/docker/clone-github-org-repos.sh`
 - Force a refresh now: `docker compose exec app npm run collector:refresh`
-- See job output (includes cron daemon's own messages): `docker compose logs app | grep -E '\[(crond|clone-cron|refresh-cron)\]'`
+- See job output (includes cron daemon's own messages): `docker compose logs app | grep -E '\[(crond|clone-startup|refresh-cron)\]'`
 
 If your host is asleep at 01:00 the missed run does not backfill. The
 next container start re-runs the clone-only pre-warm, and the

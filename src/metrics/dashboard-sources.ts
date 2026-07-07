@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, gt, inArray, isNotNull, or } from 'drizzle-orm'
 
 import { getDashboardDateRanges, getEnv } from '~/config/env'
 import { loadTeamMapping } from '~/config/team-mapping'
@@ -181,16 +181,19 @@ export async function getLatestSyncSource(input: DashboardSourcesInput): Promise
 }
 
 /**
- * Latest finished run of any mode. Unlike `getLatestSyncSource`, this
- * includes clone-only runs — the Sync Errors page needs to surface a
- * clone-only failure (e.g. a repo that failed to clone) even when a more
- * recent full run's "last synced" summary is unaffected by it.
+ * Latest finished run eligible to drive the Sync Errors page: the most recent
+ * run that is either a full sync OR recorded at least one error. A clone-only
+ * failure (e.g. a repo that failed to clone) is still surfaced — that
+ * visibility is why clone-only runs are recorded in `sync_runs` at all — but a
+ * clean clone-only pre-warm (`mode = 'clone_only'`, `errorCount = 0`) is
+ * skipped so it can never bury a prior full run's errors, which would leave the
+ * "last synced" freshness banner reporting errors the errors page can't show.
  */
-async function getLatestSyncRunOfAnyMode(db: AppDb): Promise<SyncRunSource | null> {
+async function getLatestReportableSyncRun(db: AppDb): Promise<SyncRunSource | null> {
   const [latestRun] = await db
     .select()
     .from(syncRuns)
-    .where(isNotNull(syncRuns.finishedAt))
+    .where(and(isNotNull(syncRuns.finishedAt), or(eq(syncRuns.mode, 'full'), gt(syncRuns.errorCount, 0))))
     .orderBy(desc(syncRuns.finishedAt), desc(syncRuns.id))
     .limit(1)
 
@@ -203,7 +206,7 @@ export async function getSyncErrorsSource(input: DashboardSourcesInput): Promise
   syncRun: SyncRunSource | null
   rows: SyncErrorSourceRow[]
 }> {
-  const syncRun = await getLatestSyncRunOfAnyMode(input.db)
+  const syncRun = await getLatestReportableSyncRun(input.db)
   if (!syncRun) {
     return { syncRun: null, rows: [] }
   }

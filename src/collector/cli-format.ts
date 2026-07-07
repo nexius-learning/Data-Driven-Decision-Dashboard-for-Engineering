@@ -35,10 +35,12 @@ export function formatRunSummary(summary: RefreshSummary): string {
 
 /**
  * Decides the CLI process exit code for a completed or failed refresh run.
- * `AlreadyRunningError` only exits cleanly (0) in clone-only mode, matching
- * the old bash clone-cron's "skip cleanly" contract for a lock conflict —
- * every other failure, including a real clone failure in clone-only mode,
- * exits non-zero.
+ * A finished run exits 1 only when its status is `failed` (e.g. a total clone
+ * failure where no repo succeeded); a `partial` run — some repos failed, some
+ * succeeded — exits 0, with the failures visible on the Sync Errors page rather
+ * than as a non-zero exit code. `AlreadyRunningError` exits cleanly (0) only in
+ * clone-only mode, matching the old bash clone-cron's "skip cleanly" contract
+ * for a lock conflict; every other thrown error exits non-zero.
  */
 export function decideRefreshExitCode(
   outcome: { ok: true; summary: RefreshSummary } | { ok: false; error: unknown },

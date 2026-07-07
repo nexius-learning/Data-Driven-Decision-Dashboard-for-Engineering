@@ -54,6 +54,8 @@ function isUniqueViolation(err: unknown): boolean {
 
 const HEARTBEAT_INTERVAL_MS = 10_000
 const ZOMBIE_TTL_SECONDS = 120
+/** Consecutive heartbeat-write failures after which a run assumes it has lost its slot and aborts. */
+const MAX_HEARTBEAT_FAILURES = 3
 
 export type RefreshSummary = {
   reposScanned: number
@@ -118,7 +120,12 @@ async function countSyncErrors(db: AppDb, syncRunId: string): Promise<number> {
   return rows.length
 }
 
-/** Marks a sync run finished with the given status, message, and final error count. */
+/**
+ * Marks a sync run finished with the given status, message, and final error
+ * count. Gated on `status = 'running'` so a run that was reclaimed as a zombie
+ * by a peer (its row already flipped to `failed`) cannot resurrect its row to
+ * `success` and clobber the reclaim marker — that would hide a double-run.
+ */
 async function finalizeSyncRun(
   db: AppDb,
   syncRunId: string,
@@ -130,7 +137,7 @@ async function finalizeSyncRun(
   await db
     .update(syncRuns)
     .set({ finishedAt: new Date(), errorCount, status, message, phaseTimings })
-    .where(eq(syncRuns.id, syncRunId))
+    .where(and(eq(syncRuns.id, syncRunId), eq(syncRuns.status, 'running')))
 }
 
 /**
@@ -198,8 +205,22 @@ export async function refreshLocalData(
   let syncRunId: string | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
   let localErrorCount = 0
+  let ownershipLost = false
+  let heartbeatFailures = 0
   const phaseTimings: Record<string, number> = {}
   const inFlight = new Set<string>()
+
+  /**
+   * Throws if this run has lost its single-flight slot (reclaimed as a zombie,
+   * or heartbeats failing). Called at each phase boundary and before each
+   * network/clone unit of work so an out-of-lease run stops promptly instead of
+   * continuing to write `/repos` and GitHub state behind a peer that took over.
+   */
+  const assertStillOwner = (): void => {
+    if (ownershipLost) {
+      throw new Error('Refresh aborted: lost single-flight lease (row reclaimed or heartbeat failing)')
+    }
+  }
 
   const insertError = async (repositoryId: string | null, source: string, message: string) => {
     if (syncRunId === null) return
@@ -252,10 +273,39 @@ export async function refreshLocalData(
     }
     syncRunId = newRunId
 
-    // Keep heartbeat alive so we are not mistaken for a zombie
+    // Keep heartbeat alive so we are not mistaken for a zombie. Gated on
+    // `status = 'running'`: a zero-row result means a peer already reclaimed us,
+    // so we surrender the lease and abort rather than keep writing behind them.
+    // Repeated write failures are logged (the single-flight guard is the only
+    // thing preventing concurrent /repos writers now that the file lock is
+    // gone, so its degradation must not be silent) and, past a threshold,
+    // treated as a lost lease too.
     const intervalMs = opts?.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS
     heartbeatTimer = setInterval(() => {
-      db.update(syncRuns).set({ heartbeat: new Date() }).where(eq(syncRuns.id, syncRunId!)).catch(() => {})
+      void (async () => {
+        try {
+          const beat = await db
+            .update(syncRuns)
+            .set({ heartbeat: new Date() })
+            .where(and(eq(syncRuns.id, syncRunId!), eq(syncRuns.status, 'running')))
+            .returning({ id: syncRuns.id })
+          if (beat.length === 0) {
+            ownershipLost = true
+            if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
+            console.warn(`[refresh] sync run ${syncRunId} lost its lease (reclaimed as zombie); aborting`)
+          } else {
+            heartbeatFailures = 0
+          }
+        } catch (err) {
+          heartbeatFailures += 1
+          const msg = err instanceof Error ? err.message : String(err)
+          console.warn(`[refresh] heartbeat write failed (${heartbeatFailures}/${MAX_HEARTBEAT_FAILURES}): ${msg}`)
+          if (heartbeatFailures >= MAX_HEARTBEAT_FAILURES) {
+            ownershipLost = true
+            if (heartbeatTimer !== null) clearInterval(heartbeatTimer)
+          }
+        }
+      })()
     }, intervalMs)
 
     const mapping = await loadTeamMapping(env.teamMappingPath)
@@ -271,10 +321,11 @@ export async function refreshLocalData(
     // additional file-based lock layered on top. Shared kind
     // ('collector_refresh') across every mode is what makes that guard a
     // true cross-mode mutex — see Documentation/ADR/0001-refresh-progress-and-single-flight.md.
-    // Clear any staging/stale directories a prior crashed run orphaned
-    // under .clone-tmp before cloning anything — single-flight guarantees
-    // we're the only run touching it right now.
-    await clearCloneTmpDir(repoRoot)
+    // Reclaim staging/stale directories a prior crashed run orphaned under
+    // .clone-tmp before cloning anything. Aged to the zombie TTL so a
+    // concurrent live run's in-flight staging is never wiped even if the
+    // single-flight guard is ever bypassed (see clearCloneTmpDir).
+    await clearCloneTmpDir(repoRoot, ZOMBIE_TTL_SECONDS * 1000)
     const cloneStart = Date.now()
     let phaseDone = 0
     const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
@@ -288,6 +339,7 @@ export async function refreshLocalData(
     opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
 
     await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
+      assertStillOwner()
       inFlight.add(repo.name)
       try {
         await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
@@ -333,6 +385,7 @@ export async function refreshLocalData(
     }
 
     // Phase: scanning_repositories
+    assertStillOwner()
     const scanStart = Date.now()
     const candidates = await discoverRepositories(repoRoot)
     await db
@@ -377,6 +430,7 @@ export async function refreshLocalData(
     opts?.onProgress?.({ type: 'phase_start', phase: 'pr_sync', total: syncTargets.length })
 
     await runWithConcurrency(syncTargets, env.githubSyncConcurrency, async (repo) => {
+      assertStillOwner()
       prSyncAttempts += 1
       inFlight.add(repo.name)
       try {
@@ -580,7 +634,7 @@ export async function refreshLocalData(
           status: 'failed',
           message: msg,
         })
-        .where(eq(syncRuns.id, syncRunId))
+        .where(and(eq(syncRuns.id, syncRunId), eq(syncRuns.status, 'running')))
     }
     summary.status = 'failed'
     return summary

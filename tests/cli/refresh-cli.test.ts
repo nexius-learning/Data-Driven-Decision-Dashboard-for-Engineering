@@ -65,8 +65,20 @@ describe('refresh CLI', () => {
   }, 30_000)
 
   it('cli_exits_cleanly_when_no_refresh_running', async () => {
-    // No pre-inserted running row — normal run (fails due to missing env/repos but that's fine)
-    const { exitCode, stderr } = await runCli()
+    // No pre-inserted running row. Must stay hermetic: the consolidated
+    // pipeline's first phase is a live GitHub org listing + clone, so on a
+    // normally-configured dev machine (real GITHUB_TOKEN/OWNER/API base in
+    // .env, which `scripts/refresh.ts` reads and prefers over process env) an
+    // otherwise-unconstrained run would clone the whole org and blow the
+    // timeout. DATABASE_URL is the one lever the CLI takes from the process
+    // env (it is absent from .env), and the run's first query — the zombie
+    // sweep — happens before any GitHub call, so pointing it at an unreachable
+    // database fails the run fast, with no network and no clones, exactly as
+    // the original "fails for a benign reason, not because a run is already
+    // in progress" intent requires.
+    const { exitCode, stderr } = await runCli({
+      DATABASE_URL: 'postgresql://nobody:nobody@127.0.0.1:1/does_not_exist',
+    })
 
     // Exit code should be 0 or 1 (no new codes), and NO "already running" message
     expect([0, 1]).toContain(exitCode)

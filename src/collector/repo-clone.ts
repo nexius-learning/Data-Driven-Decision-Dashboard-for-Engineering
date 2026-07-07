@@ -1,6 +1,6 @@
 import { execFile as execFileCb } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
-import { access, mkdir, rename, rm } from 'node:fs/promises'
+import { access, mkdir, readdir, rename, rm, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
@@ -97,15 +97,19 @@ async function cloneIntoTemp(repoRoot: string, owner: string, name: string): Pro
 const RENAME_DESTINATION_EXISTS_CODES = new Set(['ENOTEMPTY', 'EEXIST', 'EPERM'])
 
 /**
- * Whether a `rename` failure means "another writer already occupies
- * `target`" rather than a genuine error. Renaming onto an existing
+ * Whether a `rename` failure means "another writer already finished a real
+ * clone at `target`" rather than a genuine error. Renaming onto an existing
  * non-empty directory is `ENOTEMPTY`/`EEXIST` on POSIX, but Node reports it
- * as `EPERM` on Windows — confirming `target` actually exists distinguishes
- * that race loss from a real permission error surfacing the same code.
+ * as `EPERM` on Windows — so we confirm `target` actually holds a git repo
+ * (`target/.git` present), not merely that a directory exists there. A bare
+ * "exists" check would launder a genuine permission fault (Windows AV/file
+ * lock, or an Azure Files SMB quirk) that happens to coincide with a leftover
+ * non-repo directory into a benign "race loss", silently keeping the broken
+ * `target` and discarding the fresh clone.
  */
 async function isRenameRaceLoss(err: unknown, target: string): Promise<boolean> {
   const code = (err as NodeJS.ErrnoException).code
-  return RENAME_DESTINATION_EXISTS_CODES.has(code ?? '') && (await pathExists(target))
+  return RENAME_DESTINATION_EXISTS_CODES.has(code ?? '') && (await pathExists(join(target, '.git')))
 }
 
 /**
@@ -128,15 +132,43 @@ async function swapIntoPlace(tmpTarget: string, target: string): Promise<boolean
 }
 
 /**
- * Clears `repoRoot/.clone-tmp` entirely. Call once at the start of the
- * cloning phase (before any `cloneOrUpdateRepository` call) to reclaim
- * staging/stale directories orphaned by a prior run that crashed mid-clone
- * or mid-repair — otherwise they accumulate forever. Safe because the
- * sync_runs single-flight guard already guarantees only one run touches
- * `.clone-tmp` at a time.
+ * Reclaims staging/stale directories under `repoRoot/.clone-tmp` orphaned by a
+ * prior run that crashed mid-clone or mid-repair. Call once at the start of the
+ * cloning phase (before any `cloneOrUpdateRepository` call) — otherwise they
+ * accumulate forever.
+ *
+ * Only entries older than `maxAgeMs` are removed. The earlier "delete the whole
+ * directory" behavior was only safe while the single-flight guard held
+ * perfectly — but the temp+rename scheme exists precisely so a bypassed guard
+ * (e.g. a zombie reclaim racing a still-alive writer) can never corrupt a repo,
+ * and wiping the shared staging root unconditionally would delete a concurrent
+ * live run's in-flight clone out from under it, defeating that guarantee. Aging
+ * the sweep to the zombie TTL preserves any staging touched within the window a
+ * live run could still own it. Pass `0` to remove everything (single-caller,
+ * no-concurrency contexts only).
  */
-export async function clearCloneTmpDir(repoRoot: string): Promise<void> {
-  await rm(join(repoRoot, CLONE_TMP_DIR_NAME), { recursive: true, force: true })
+export async function clearCloneTmpDir(repoRoot: string, maxAgeMs = 0): Promise<void> {
+  const tmpRoot = join(repoRoot, CLONE_TMP_DIR_NAME)
+  let entries: string[]
+  try {
+    entries = await readdir(tmpRoot)
+  } catch {
+    return
+  }
+  const cutoff = Date.now() - maxAgeMs
+  await Promise.all(
+    entries.map(async (entry) => {
+      const entryPath = join(tmpRoot, entry)
+      try {
+        const info = await stat(entryPath)
+        if (info.mtimeMs <= cutoff) {
+          await rm(entryPath, { recursive: true, force: true })
+        }
+      } catch {
+        // Entry vanished (a concurrent run renamed/removed it first) — nothing to reclaim.
+      }
+    }),
+  )
 }
 
 async function cloneFresh(repoRoot: string, owner: string, name: string): Promise<void> {

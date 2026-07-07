@@ -73,10 +73,14 @@ metadata — can never be shown as "last synced": `getLatestSyncSource` in
 `src/metrics/pr-cycle-time-dashboard.ts` that drives the main dashboard's freshness banner (a
 separate, unfiltered query a devil's-advocate review of the bash-delegate work found was missed by
 the first filter). A clone-only run's own failures still need to be visible somewhere, though, so
-`getSyncErrorsSource` was given an independent "latest run of any mode" lookup
-(`getLatestSyncRunOfAnyMode`) rather than reusing the now-filtered `getLatestSyncSource` — and
-`SyncRunSource` exposes `mode` so the Sync Errors page can flag when the run it's showing isn't
-`'full'` and may not match the "last synced" panel.
+`getSyncErrorsSource` was given an independent lookup (`getLatestReportableSyncRun`) rather than
+reusing the now-filtered `getLatestSyncSource`. It selects the most recent finished run that is
+either `mode = 'full'` **or** has `errorCount > 0` — a clone-only *failure* is still surfaced (the
+reason clone-only runs are recorded in `sync_runs` at all), but a clean clone-only pre-warm
+(`mode = 'clone_only'`, zero errors) is skipped so it can never bury a prior full run's errors and
+leave the freshness banner reporting errors the errors page can't display. `SyncRunSource` exposes
+`mode` so the Sync Errors page can still flag when the run it's showing isn't `'full'` and may not
+match the "last synced" panel.
 
 Removing the file lock alone would have reopened a `.git` corruption path independent of the
 `sync_runs` guard: a crashed writer's orphaned `git` process can keep writing to a repo directory
@@ -84,10 +88,18 @@ after its row is reclaimed as a zombie by another run. `cloneOrUpdateRepository`
 (`src/collector/repo-clone.ts`) was hardened to clone/repair into a temp directory under
 `repoRoot/.clone-tmp` and atomically rename the result into place, so two concurrent writers
 targeting the same repo can never produce half-written content regardless of whether the DB guard
-is ever bypassed. This is filesystem-level defense in depth, not a replacement for the single-flight
-guard; see [ADR 0001](0001-refresh-progress-and-single-flight.md) for the full detail and its
-residual scope (it does not extend to the steady-state `git fetch` path on an already-healthy
-clone, which still relies on git's own internal locking).
+is ever bypassed. Two follow-ups keep that "holds even under bypass" claim honest: (1) the
+start-of-phase staging reclaim (`clearCloneTmpDir`) removes only entries older than the zombie TTL
+instead of wiping the whole shared `.clone-tmp`, so it can never delete a concurrent live run's
+in-flight clone; and (2) a run's own `sync_runs` writes (heartbeat, finalize, the failure handler)
+are gated on `status = 'running'`, so a run reclaimed as a zombie by a peer surrenders its lease and
+aborts rather than continuing to write `/repos` and clobbering the reclaim marker (which would have
+hidden the double-run). `isRenameRaceLoss` fingerprints `target/.git` rather than mere existence, so
+a genuine permission fault is not laundered into a benign "race loss." This is filesystem- and
+lease-level defense in depth, not a replacement for the single-flight guard; see
+[ADR 0001](0001-refresh-progress-and-single-flight.md) for the full detail and its residual scope
+(it does not extend to the steady-state `git fetch` path on an already-healthy clone, which still
+relies on git's own internal locking).
 
 ## Considered alternatives
 

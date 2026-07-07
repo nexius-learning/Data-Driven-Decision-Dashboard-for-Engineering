@@ -18,6 +18,7 @@ function baseDashboard(overrides: Partial<DashboardModel> = {}): DashboardModel 
     exceptions: [],
     weeklyTrend: [],
     comparisonWeeklyTrend: [],
+    allTeams: [],
     teamBreakdown: [],
     freshness: {
       reposScanned: 3,

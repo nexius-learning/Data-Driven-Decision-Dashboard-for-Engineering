@@ -164,6 +164,7 @@ describe('dashboard route', () => {
       inFlightRepos: [],
       errorCount: 0,
       heartbeatAt: new Date(Date.now() - 1_000),
+      startedAt: new Date(Date.now() - 5_000),
     }
     useServerFnMock.mockImplementation(((fn: unknown) => {
       if (fn === getActiveSyncRunFn) return () => Promise.resolve(liveRun)
@@ -187,6 +188,7 @@ describe('dashboard route', () => {
       inFlightRepos: [],
       errorCount: 0,
       heartbeatAt: new Date(Date.now() - 300_000),
+      startedAt: new Date(Date.now() - 305_000),
     }
     useServerFnMock.mockImplementation(((fn: unknown) => {
       if (fn === getActiveSyncRunFn) return () => Promise.resolve(zombieRun)

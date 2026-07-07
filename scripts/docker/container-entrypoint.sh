@@ -60,7 +60,7 @@ npm run db:migrate
 #    is idempotent so existing clones are skipped. Invoke via `bash`
 #    explicitly — host bind-mount can override the script's mode bits
 #    on platforms where git's core.filemode is true.
-( bash /app/scripts/docker/run-clone-in-cron.sh ) &
+( bash /app/scripts/docker/run-clone-at-startup.sh ) &
 
 # 5. Hand off to Vite. exec replaces the shell with npm; combined with
 #    `init: true` on the compose service, tini stays PID 1 and forwards

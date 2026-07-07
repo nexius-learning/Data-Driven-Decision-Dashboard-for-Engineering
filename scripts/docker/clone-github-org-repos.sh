@@ -15,8 +15,8 @@
 # Inherits GITHUB_TOKEN, GITHUB_SYNC_OWNER, DASHBOARD_REPO_ROOT,
 # DATABASE_URL, and friends from the container environment — already
 # present for a manual `docker compose exec` shell, or sourced from
-# /etc/container.env by run-clone-in-cron.sh when this script is
-# triggered by cron or container start.
+# /etc/container.env by run-clone-at-startup.sh when this script is
+# triggered at container start.
 #
 # Unlike the old standalone implementation, this script no longer
 # prints a categorized breakdown of repos skipped by policy (archived /
