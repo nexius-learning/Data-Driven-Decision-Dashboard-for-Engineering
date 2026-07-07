@@ -83,4 +83,15 @@ describe('getActiveSyncRun', () => {
     })
     expect(await getActiveSyncRun({ db })).toBeNull()
   })
+
+  it('getActiveSyncRun_ignores_running_clone_only_rows', async () => {
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      mode: 'clone_only',
+      startedAt: new Date(),
+      errorCount: 0,
+    })
+    expect(await getActiveSyncRun({ db })).toBeNull()
+  })
 })

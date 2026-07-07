@@ -16,7 +16,7 @@ export async function getActiveSyncRun({ db }: { db: AppDb }): Promise<ActiveSyn
       startedAt: syncRuns.startedAt,
     })
     .from(syncRuns)
-    .where(and(eq(syncRuns.status, 'running'), eq(syncRuns.kind, 'collector_refresh')))
+    .where(and(eq(syncRuns.status, 'running'), eq(syncRuns.kind, 'collector_refresh'), eq(syncRuns.mode, 'full')))
     .orderBy(desc(syncRuns.heartbeat))
     .limit(1)
 

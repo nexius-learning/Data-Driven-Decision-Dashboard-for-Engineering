@@ -107,6 +107,30 @@ describe('single-flight guard', () => {
     expect(zombieRow[0]?.message).toBe('zombie_expired')
   })
 
+  it('refresh_expires_zombie_clone_only_run_and_proceeds', async () => {
+    const zombieStartedAt = new Date(Date.now() - 200_000) // 200s ago > 120s TTL
+    const staleHeartbeat = new Date(Date.now() - 130_000)  // stale heartbeat
+    const [zombie] = await db
+      .insert(syncRuns)
+      .values({
+        kind: 'collector_refresh',
+        status: 'running',
+        mode: 'clone_only',
+        startedAt: zombieStartedAt,
+        heartbeat: staleHeartbeat,
+      })
+      .returning({ id: syncRuns.id })
+
+    vi.spyOn(GitHubClient.prototype, 'listPullRequests').mockResolvedValue([])
+    // A zombie clone-only row must not block a new run either — same TTL reclaim, no mode-specific timeout.
+    const result = await refreshLocalData({ databaseUrl: databaseUrl! })
+    expect(result).not.toBeInstanceOf(Error)
+
+    const zombieRow = await db.select().from(syncRuns).where(eq(syncRuns.id, zombie!.id))
+    expect(zombieRow[0]?.status).toBe('failed')
+    expect(zombieRow[0]?.message).toBe('zombie_expired')
+  })
+
   it('refresh_backs_off_when_fresh_running_row_exists', async () => {
     const startedAt = new Date(Date.now() - 5000) // 5 seconds ago — not a zombie
     await db.insert(syncRuns).values({
@@ -119,5 +143,33 @@ describe('single-flight guard', () => {
     const listSpy = vi.spyOn(GitHubClient.prototype, 'listPullRequests').mockResolvedValue([])
     await expect(refreshLocalData({ databaseUrl: databaseUrl! })).rejects.toThrow(AlreadyRunningError)
     expect(listSpy).not.toHaveBeenCalled()
+  })
+
+  it('refresh_full_run_is_blocked_by_in_progress_clone_only_run', async () => {
+    const startedAt = new Date(Date.now() - 5000) // not a zombie
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      mode: 'clone_only',
+      startedAt,
+      heartbeat: new Date(),
+    })
+
+    await expect(refreshLocalData({ databaseUrl: databaseUrl! })).rejects.toThrow(AlreadyRunningError)
+  })
+
+  it('refresh_clone_only_run_is_blocked_by_in_progress_full_run', async () => {
+    const startedAt = new Date(Date.now() - 5000) // not a zombie
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      mode: 'full',
+      startedAt,
+      heartbeat: new Date(),
+    })
+
+    await expect(
+      refreshLocalData({ databaseUrl: databaseUrl! }, { mode: 'clone-only' }),
+    ).rejects.toThrow(AlreadyRunningError)
   })
 })

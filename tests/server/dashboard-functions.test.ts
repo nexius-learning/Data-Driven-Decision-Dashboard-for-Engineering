@@ -5,10 +5,11 @@ import { eq, inArray } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { GitHubClient } from '~/collector/github-client'
-import { refreshLocalData } from '~/collector/refresh'
+import { AlreadyRunningError, refreshLocalData } from '~/collector/refresh'
 import { createDb, runMigrations } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 import {
+  formatRefreshFailureMessage,
   getDashboardData,
   parseDashboardWeeksInput,
   refreshLocalDataFn,
@@ -140,5 +141,50 @@ describe('dashboard server integration', () => {
     const summary = await refreshLocalData()
     expect(summary.reposScanned).toBeGreaterThanOrEqual(0)
     expect(['success', 'partial', 'failed']).toContain(summary.status)
+  })
+
+  it('an_already_running_error_from_refresh_local_data_is_recognized_by_the_dashboard_handler', async () => {
+    // Proves the actual wiring refreshLocalDataFn relies on: an AlreadyRunningError
+    // thrown by a real refreshLocalData() call satisfies `instanceof AlreadyRunningError`
+    // at the catch site, and feeds formatRefreshFailureMessage the friendly text —
+    // not just that the pure function works when handed a hand-picked boolean.
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      startedAt: new Date(Date.now() - 5000),
+      heartbeat: new Date(),
+    })
+
+    let caught: unknown
+    try {
+      await refreshLocalData()
+    } catch (e) {
+      caught = e
+    }
+
+    expect(caught).toBeInstanceOf(AlreadyRunningError)
+    const message = formatRefreshFailureMessage(caught, caught instanceof AlreadyRunningError)
+    expect(message).toBe('A refresh is already in progress. Try refreshing again in a moment.')
+  })
+})
+
+describe('formatRefreshFailureMessage', () => {
+  it('returns_a_fixed_friendly_message_for_an_already_running_collision', () => {
+    // Simulates the Story-3 collision: getActiveSyncRun hides a clone-only run (mode
+    // filter), so the button shows idle, but the single-flight guard (keyed on kind,
+    // not mode) still rejects a concurrent full refresh with AlreadyRunningError.
+    const raw = new Error('A refresh is already running (started 12s ago, status: running). Aborting.')
+    const message = formatRefreshFailureMessage(raw, true)
+    expect(message).toBe('A refresh is already in progress. Try refreshing again in a moment.')
+  })
+
+  it('returns_the_raw_truncated_error_message_for_other_failures', () => {
+    const message = formatRefreshFailureMessage(new Error('boom'), false)
+    expect(message).toBe('boom')
+  })
+
+  it('falls_back_to_a_generic_message_for_non_error_throws', () => {
+    const message = formatRefreshFailureMessage('not an error', false)
+    expect(message).toBe('Refresh failed')
   })
 })

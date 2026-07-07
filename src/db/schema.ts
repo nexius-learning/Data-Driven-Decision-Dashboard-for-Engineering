@@ -46,6 +46,7 @@ export const syncRuns = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     kind: text('kind').notNull(),
     status: text('status').notNull(),
+    mode: text('mode').notNull().default('full'),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
     message: text('message'),

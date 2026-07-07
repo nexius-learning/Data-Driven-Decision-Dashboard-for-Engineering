@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
-import { formatProgressLine, formatRunSummary } from '~/collector/cli-format'
-import type { RefreshSummary } from '~/collector/refresh'
+import { decideRefreshExitCode, formatProgressLine, formatRunSummary } from '~/collector/cli-format'
+import { AlreadyRunningError, type RefreshSummary } from '~/collector/refresh'
 
 const baseSummary: RefreshSummary = {
   reposScanned: 10,
@@ -102,5 +102,32 @@ describe('formatRunSummary', () => {
     const text = formatRunSummary(baseSummary)
     expect(text).not.toMatch(/^\s*\{/)
     expect(text).not.toContain('"reposScanned"')
+  })
+})
+
+describe('decideRefreshExitCode', () => {
+  it('exits_zero_on_a_successful_run', () => {
+    expect(decideRefreshExitCode({ ok: true, summary: baseSummary }, false)).toBe(0)
+  })
+
+  it('exits_one_when_the_run_status_is_failed', () => {
+    expect(decideRefreshExitCode({ ok: true, summary: { ...baseSummary, status: 'failed' } }, false)).toBe(1)
+  })
+
+  it('exits_one_when_the_run_status_is_failed_in_clone_only_mode_too', () => {
+    // A real clone failure must still surface as a non-zero exit in clone-only mode,
+    // matching the CLI's contract for every other failure mode (AC10).
+    expect(decideRefreshExitCode({ ok: true, summary: { ...baseSummary, status: 'failed' } }, true)).toBe(1)
+  })
+
+  it('exits_zero_on_already_running_only_in_clone_only_mode', () => {
+    const error = new AlreadyRunningError(new Date())
+    expect(decideRefreshExitCode({ ok: false, error }, true)).toBe(0)
+    expect(decideRefreshExitCode({ ok: false, error }, false)).toBe(1)
+  })
+
+  it('exits_one_for_any_other_thrown_error_regardless_of_mode', () => {
+    expect(decideRefreshExitCode({ ok: false, error: new Error('boom') }, true)).toBe(1)
+    expect(decideRefreshExitCode({ ok: false, error: new Error('boom') }, false)).toBe(1)
   })
 })

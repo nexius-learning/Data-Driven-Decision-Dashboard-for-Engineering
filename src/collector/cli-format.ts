@@ -1,4 +1,4 @@
-import type { ProgressEvent, RefreshSummary } from '~/collector/refresh'
+import { AlreadyRunningError, type ProgressEvent, type RefreshSummary } from '~/collector/refresh'
 
 /** Formats a single progress event as a timestamped CLI log line. */
 export function formatProgressLine(event: ProgressEvent, timestamp: string): string {
@@ -31,4 +31,24 @@ export function formatRunSummary(summary: RefreshSummary): string {
   lines.push(`Size sync errors:        ${summary.sizeSyncErrors}`)
 
   return lines.join('\n')
+}
+
+/**
+ * Decides the CLI process exit code for a completed or failed refresh run.
+ * `AlreadyRunningError` only exits cleanly (0) in clone-only mode, matching
+ * the old bash clone-cron's "skip cleanly" contract for a lock conflict —
+ * every other failure, including a real clone failure in clone-only mode,
+ * exits non-zero.
+ */
+export function decideRefreshExitCode(
+  outcome: { ok: true; summary: RefreshSummary } | { ok: false; error: unknown },
+  cloneOnly: boolean,
+): number {
+  if (outcome.ok) {
+    return outcome.summary.status === 'failed' ? 1 : 0
+  }
+  if (cloneOnly && outcome.error instanceof AlreadyRunningError) {
+    return 0
+  }
+  return 1
 }

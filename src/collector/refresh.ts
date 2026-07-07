@@ -13,6 +13,7 @@ import { syncRepositoryReviews } from '~/collector/review-sync'
 import type { AppEnv } from '~/config/env'
 import { getEnv } from '~/config/env'
 import { loadTeamMapping, shouldSyncRepo } from '~/config/team-mapping'
+import type { AppDb } from '~/db/client'
 import { createDb } from '~/db/client'
 import { pullRequests, repositories, syncErrors, syncRuns } from '~/db/schema'
 
@@ -112,17 +113,40 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
   await Promise.all(Array.from({ length: n }, () => runWorker()))
 }
 
+/** Counts the sync_errors rows recorded for a given run. */
+async function countSyncErrors(db: AppDb, syncRunId: string): Promise<number> {
+  const rows = await db.select({ id: syncErrors.id }).from(syncErrors).where(eq(syncErrors.syncRunId, syncRunId))
+  return rows.length
+}
+
+/** Marks a sync run finished with the given status, message, and final error count. */
+async function finalizeSyncRun(
+  db: AppDb,
+  syncRunId: string,
+  phaseTimings: Record<string, number>,
+  status: 'success' | 'partial' | 'failed',
+  message: string | null,
+  errorCount: number,
+): Promise<void> {
+  await db
+    .update(syncRuns)
+    .set({ finishedAt: new Date(), errorCount, status, message, phaseTimings })
+    .where(eq(syncRuns.id, syncRunId))
+}
+
 /**
  * Scans local repositories, upserts metadata, syncs GitHub PRs for `ready`
  * repositories, and records sync run / error rows.
  */
 export async function refreshLocalData(
   input?: Partial<AppEnv>,
-  opts?: { heartbeatIntervalMs?: number; onProgress?: (event: ProgressEvent) => void },
+  opts?: { mode?: 'full' | 'clone-only'; heartbeatIntervalMs?: number; onProgress?: (event: ProgressEvent) => void },
 ): Promise<RefreshSummary> {
   const mergedEnv = buildProcessEnvFromPartial(input)
   const env = getEnv(mergedEnv)
   const db = createDb(env.databaseUrl)
+  const mode = opts?.mode ?? 'full'
+  const dbMode = mode === 'clone-only' ? 'clone_only' : 'full'
 
   if (mergedEnv.DASHBOARD_E2E_REFRESH_STUB?.trim() === '1') {
     try {
@@ -210,6 +234,7 @@ export async function refreshLocalData(
         id: newRunId,
         kind: 'collector_refresh',
         status: 'running',
+        mode: dbMode,
         startedAt,
         finishedAt: null,
         message: null,
@@ -246,9 +271,11 @@ export async function refreshLocalData(
     // already cloning into the same repoRoot instead of racing it.
     const cloneStart = Date.now()
     let phaseDone = 0
+    let cloneTargetCount = 0
     const cloneRun = await withCloneLock(repoRoot, async () => {
       const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
       const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
+      cloneTargetCount = cloneTargets.length
 
       await db
         .update(syncRuns)
@@ -285,6 +312,27 @@ export async function refreshLocalData(
     })
     if (cloneRun.ran) {
       phaseTimings['cloning_repositories'] = Date.now() - cloneStart
+    }
+
+    if (mode === 'clone-only') {
+      const cloneOnlyErrorCount = await countSyncErrors(db, syncRunId)
+      const cloneSuccessCount = cloneTargetCount - cloneOnlyErrorCount
+      let cloneOnlyStatus: 'success' | 'partial' | 'failed' = 'success'
+      let cloneOnlyMessage: string | null = null
+      if (!cloneRun.ran) {
+        cloneOnlyStatus = 'failed'
+        cloneOnlyMessage = 'clone_lock_held_elsewhere'
+      } else if (cloneTargetCount > 0 && cloneSuccessCount === 0 && cloneOnlyErrorCount > 0) {
+        cloneOnlyStatus = 'failed'
+      } else if (cloneOnlyErrorCount > 0) {
+        cloneOnlyStatus = 'partial'
+      }
+
+      await finalizeSyncRun(db, syncRunId, phaseTimings, cloneOnlyStatus, cloneOnlyMessage, cloneOnlyErrorCount)
+      summary.syncErrors = cloneOnlyErrorCount
+      summary.status = cloneOnlyStatus
+      summary.phaseTimingsMs = phaseTimings
+      return summary
     }
 
     // Phase: scanning_repositories
@@ -499,8 +547,7 @@ export async function refreshLocalData(
     }
     phaseTimings['pr_size_sync'] = Date.now() - sizeSyncStart
 
-    const errorRows = await db.select({ id: syncErrors.id }).from(syncErrors).where(eq(syncErrors.syncRunId, syncRunId))
-    const errorRowCount = errorRows.length
+    const errorRowCount = await countSyncErrors(db, syncRunId)
     summary.syncErrors = errorRowCount
 
     let runStatus: 'success' | 'partial' | 'failed' = 'success'
@@ -516,16 +563,7 @@ export async function refreshLocalData(
       runStatus = 'success'
     }
 
-    await db
-      .update(syncRuns)
-      .set({
-        finishedAt: new Date(),
-        errorCount: errorRowCount,
-        status: runStatus,
-        message: null,
-        phaseTimings,
-      })
-      .where(eq(syncRuns.id, syncRunId))
+    await finalizeSyncRun(db, syncRunId, phaseTimings, runStatus, null, errorRowCount)
 
     summary.status = runStatus
     summary.phaseTimingsMs = phaseTimings

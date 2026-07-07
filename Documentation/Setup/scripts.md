@@ -49,6 +49,19 @@ Use this for day-to-day syncing from your **local clone layout**.
 
 Output: JSON **`RefreshSummary`** to stdout. Exit code **1** if the run status is **`failed`**, otherwise **0**.
 
+**`--clone-only` flag:**
+
+```bash
+npm run collector:refresh -- --clone-only
+```
+
+Runs only the **cloning_repositories** phase (org listing, team-mapping filtering, clone/update/repair) and records a `sync_runs` row with `mode = clone_only`, skipping scanning and PR/review/size sync entirely. Intended for lightweight pre-warm triggers (e.g. container start) rather than day-to-day use.
+
+- Mutually exclusive with a full refresh via the same single-flight guard: whichever starts second gets `AlreadyRunningError`, regardless of mode.
+- If another process (e.g. `scripts/docker/clone-github-org-repos.sh`) is already cloning into the same `DASHBOARD_REPO_ROOT`, the run finishes with status **`failed`** and message `clone_lock_held_elsewhere` rather than falsely reporting success.
+- Exits **0** when the failure is `AlreadyRunningError` (matching the old bash clone-cron's "skip cleanly" contract for a lock conflict); exits **1** for any other failure, including a failed clone.
+- Does not appear as an attachable run on the live web dashboard's Refresh button (only full refreshes do).
+
 ### `npm run db:import-github`
 
 Runs `tsx scripts/import-github-repos.ts`, which calls **`importGitHubRepositories`** with explicit **`owner/repo`** slugs (no local clones required for those repos).

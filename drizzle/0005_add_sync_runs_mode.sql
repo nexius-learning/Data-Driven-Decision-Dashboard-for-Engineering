@@ -1,0 +1,1 @@
+ALTER TABLE "sync_runs" ADD COLUMN "mode" text DEFAULT 'full' NOT NULL;

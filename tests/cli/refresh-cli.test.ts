@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, afterEach, describe, expect, it } from 'vitest'
 import { createDb, runMigrations } from '~/db/client'
@@ -7,10 +8,13 @@ import { syncErrors, syncRuns } from '~/db/schema'
 const databaseUrl = process.env.DATABASE_URL?.trim()
 const scriptPath = path.resolve(process.cwd(), 'scripts', 'refresh.ts')
 
-function runCli(env?: Record<string, string>): Promise<{ exitCode: number; stderr: string; stdout: string }> {
+function runCli(
+  env?: Record<string, string>,
+  args?: string[],
+): Promise<{ exitCode: number; stderr: string; stdout: string }> {
   return new Promise((resolve, reject) => {
     const tsxBin = path.resolve(process.cwd(), 'node_modules', 'tsx', 'dist', 'cli.mjs')
-    const child = spawn(process.execPath, [tsxBin, scriptPath], {
+    const child = spawn(process.execPath, [tsxBin, scriptPath, ...(args ?? [])], {
       env: { ...process.env, DATABASE_URL: databaseUrl, ...env },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
@@ -27,8 +31,14 @@ describe('refresh CLI', () => {
   let db: ReturnType<typeof createDb>
 
   beforeAll(async () => {
+    await mkdir(path.join(process.cwd(), '.tmp'), { recursive: true })
     await runMigrations(databaseUrl)
     db = createDb(databaseUrl!)
+    // Defensive: this file spawns real CLI subprocesses, which can leave a
+    // 'running' row behind if a prior interrupted run never reached its own
+    // afterEach — start from a clean slate rather than assume one.
+    await db.delete(syncErrors)
+    await db.delete(syncRuns)
   })
 
   afterAll(async () => {
@@ -61,5 +71,56 @@ describe('refresh CLI', () => {
     // Exit code should be 0 or 1 (no new codes), and NO "already running" message
     expect([0, 1]).toContain(exitCode)
     expect(stderr).not.toMatch(/already running/i)
+  }, 30_000)
+
+  it('cli_clone_only_exits_zero_when_already_running', async () => {
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      startedAt: new Date(Date.now() - 5000),
+      heartbeat: new Date(),
+    })
+
+    const { exitCode, stderr } = await runCli(undefined, ['--clone-only'])
+
+    // Matches the old bash clone-cron's "skip cleanly" contract for a lock conflict.
+    expect(exitCode).toBe(0)
+    expect(stderr).toMatch(/already running/i)
+  }, 30_000)
+
+  it('cli_without_clone_only_flag_still_exits_nonzero_when_already_running', async () => {
+    await db.insert(syncRuns).values({
+      kind: 'collector_refresh',
+      status: 'running',
+      mode: 'clone_only',
+      startedAt: new Date(Date.now() - 5000),
+      heartbeat: new Date(),
+    })
+
+    const { exitCode, stderr } = await runCli()
+
+    expect(exitCode).toBe(1)
+    expect(stderr).toMatch(/already running/i)
+  }, 30_000)
+
+  it('cli_clone_only_exits_one_on_a_real_clone_failure', async () => {
+    // Forces refreshLocalData's clone-only path to a genuine `status: 'failed'`
+    // outcome (lock held elsewhere) without needing GitHub network access —
+    // withCloneLock returns { ran: false } before any API call is made, so
+    // no pre-inserted sync_runs row or GitHub token is needed to trigger it.
+    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'cli-cloneonly-lockheld-'))
+    try {
+      const lockDir = path.join(root, '.clone-in-progress')
+      await mkdir(lockDir, { recursive: true })
+      await writeFile(path.join(lockDir, 'started-at'), new Date().toISOString(), 'utf8')
+
+      const { exitCode, stderr } = await runCli({ DASHBOARD_REPO_ROOT: root }, ['--clone-only'])
+
+      // Not an AlreadyRunningError — must NOT be treated as a clean skip.
+      expect(exitCode).toBe(1)
+      expect(stderr).not.toMatch(/already running/i)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
   }, 30_000)
 })
