@@ -1,4 +1,4 @@
-import { desc, eq, inArray, isNotNull } from 'drizzle-orm'
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm'
 
 import { getDashboardDateRanges, getEnv } from '~/config/env'
 import { loadTeamMapping } from '~/config/team-mapping'
@@ -466,10 +466,12 @@ export async function getPrCycleTimeDashboard(input: PrCycleTimeDashboardInput):
     }
   })
 
+  // Excludes clone-only runs (`mode = 'clone_only'`) — they sync no PR metadata,
+  // so letting one drive freshness would misrepresent how fresh the metrics are.
   const [latestRun] = await input.db
     .select()
     .from(syncRuns)
-    .where(isNotNull(syncRuns.finishedAt))
+    .where(and(isNotNull(syncRuns.finishedAt), eq(syncRuns.mode, 'full')))
     .orderBy(desc(syncRuns.finishedAt), desc(syncRuns.id))
     .limit(1)
 

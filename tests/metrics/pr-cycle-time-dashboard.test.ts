@@ -381,6 +381,79 @@ describe('pr-cycle-time-dashboard', () => {
     await db.delete(syncRuns).where(eq(syncRuns.id, syncId))
   })
 
+  it('dashboard_ignores_a_clone_only_run_that_finished_after_a_full_run', async () => {
+    const fullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: fullRunId,
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'full',
+      startedAt: new Date('2099-01-15T10:00:00.000Z'),
+      finishedAt: new Date('2099-01-15T10:05:00.000Z'),
+      errorCount: 0,
+    })
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'failed',
+      mode: 'clone_only',
+      startedAt: new Date('2099-01-15T11:00:00.000Z'),
+      finishedAt: new Date('2099-01-15T11:05:00.000Z'),
+      errorCount: 3,
+    })
+    const rid = await insertRepo()
+    await insertPr(rid, {
+      number: 99,
+      openedAt: new Date('2026-05-01T10:00:00.000Z'),
+      mergedAt: new Date('2026-05-10T10:00:00.000Z'),
+    })
+    const d = await getPrCycleTimeDashboard({ db, now: new Date('2026-05-14T15:00:00.000'), weeks: 8 })
+    expect(d.freshness.latestSyncStatus).toBe('success')
+    expect(d.freshness.syncErrors).toBe(0)
+    expect(d.freshness.prMetadataSyncedAt).toBe('2099-01-15T10:05:00.000Z')
+  })
+
+  it('dashboard_ignores_a_successful_clone_only_run_that_finished_after_a_full_run', async () => {
+    const fullRunId = randomUUID()
+    await db.insert(syncRuns).values({
+      id: fullRunId,
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'full',
+      startedAt: new Date('2099-01-15T10:00:00.000Z'),
+      finishedAt: new Date('2099-01-15T10:05:00.000Z'),
+      errorCount: 0,
+    })
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'success',
+      mode: 'clone_only',
+      startedAt: new Date('2099-01-15T11:00:00.000Z'),
+      finishedAt: new Date('2099-01-15T11:05:00.000Z'),
+      errorCount: 0,
+    })
+    const d = await getPrCycleTimeDashboard({ db, now: new Date('2026-05-14T15:00:00.000'), weeks: 8 })
+    expect(d.freshness.latestSyncStatus).toBe('success')
+    expect(d.freshness.prMetadataSyncedAt).toBe('2099-01-15T10:05:00.000Z')
+  })
+
+  it('dashboard_does_not_surface_a_failed_clone_only_run_as_the_latest_sync_status', async () => {
+    await db.insert(syncRuns).values({
+      id: randomUUID(),
+      kind: 'collector_refresh',
+      status: 'failed',
+      mode: 'clone_only',
+      startedAt: new Date('2099-01-15T11:00:00.000Z'),
+      finishedAt: new Date('2099-01-15T11:05:00.000Z'),
+      errorCount: 1,
+    })
+    const d = await getPrCycleTimeDashboard({ db, now: new Date('2026-05-14T15:00:00.000'), weeks: 8 })
+    expect(d.freshness.latestSyncStatus).toBe('never_run')
+    expect(d.freshness.syncErrors).toBe(0)
+    expect(d.freshness.prMetadataSyncedAt).toBeNull()
+  })
+
   it('team_breakdown_computes_per_team_medians', async () => {
     const now = new Date('2026-05-14T15:00:00.000')
     const { current } = getDashboardDateRanges(now, 8)
