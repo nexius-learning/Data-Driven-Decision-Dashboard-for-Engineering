@@ -200,6 +200,27 @@ describe('cloneOrUpdateRepository', () => {
 
     await expect(cloneOrUpdateRepository(root, 'acme', 'missing')).rejects.toThrow(RepoCloneError)
   })
+
+  it('reports_a_timeout_distinctly_from_a_genuine_clone_failure', async () => {
+    // Node kills a timed-out execFile with SIGTERM and sets `killed: true`;
+    // stderr is typically empty at that point since the process died before
+    // writing anything — the generic "failed: <message>" text would look
+    // identical to a real git error with no diagnostic info at all.
+    __setCloneExecForTests(async () => {
+      const err = new Error('Command failed: git clone --quiet https://github.com/acme/slow.git') as Error & {
+        killed: boolean
+        signal: string
+      }
+      err.killed = true
+      err.signal = 'SIGTERM'
+      throw err
+    })
+
+    await expect(cloneOrUpdateRepository(root, 'acme', 'slow')).rejects.toMatchObject({
+      name: 'RepoCloneError',
+      message: expect.stringContaining('timed out'),
+    })
+  })
 })
 
 describe('clearCloneTmpDir', () => {

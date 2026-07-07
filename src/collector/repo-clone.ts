@@ -25,7 +25,13 @@ export function __setCloneExecForTests(fn: CloneExecFn | null): void {
   cloneExecOverride = fn
 }
 
-const CLONE_TIMEOUT_MS = 120_000
+// A first-time clone of a large repo (full commit history, even blobless)
+// can legitimately take several minutes, especially split across
+// GITHUB_SYNC_CONCURRENCY workers competing for bandwidth. 120s was
+// observed killing healthy clones outright (see sync_errors from the
+// 2026-07-07 07:52 run); 10 minutes gives real first clones room while
+// still bounding a genuinely hung git process.
+const CLONE_TIMEOUT_MS = 600_000
 const HEAD_CHECK_TIMEOUT_MS = 10_000
 
 /**
@@ -50,8 +56,22 @@ async function runGitClone(args: readonly string[], timeoutMs: number): Promise<
     })
   } catch (error) {
     if (error instanceof RepoCloneError) throw error
+    const gitCommand = args[0] ?? 'command'
+    // Node kills the process with SIGTERM when `timeout` fires; at that
+    // point stderr is typically empty (the process died before writing
+    // anything), so the generic message below would just be
+    // "Command failed: <cmd>" with no indication of *why* — easy to
+    // mistake for a genuine git failure instead of "needed more time".
+    const isTimeout =
+      typeof error === 'object' &&
+      error !== null &&
+      (error as NodeJS.ErrnoException & { killed?: boolean; signal?: string | null }).killed === true &&
+      (error as { signal?: string | null }).signal === 'SIGTERM'
+    if (isTimeout) {
+      throw new RepoCloneError(`git ${gitCommand} timed out after ${timeoutMs}ms`, { cause: error })
+    }
     const message = error instanceof Error ? error.message : String(error)
-    throw new RepoCloneError(`git ${args[0] ?? 'command'} failed: ${message}`, { cause: error })
+    throw new RepoCloneError(`git ${gitCommand} failed: ${message}`, { cause: error })
   }
 }
 
