@@ -103,7 +103,7 @@ describe('refresh CLI', () => {
     expect(stderr).toMatch(/already running/i)
   }, 30_000)
 
-  it('cli_clone_only_exits_one_on_a_real_clone_failure', async () => {
+  it('cli_clone_only_exits_one_when_clone_lock_held_elsewhere', async () => {
     // Forces refreshLocalData's clone-only path to a genuine `status: 'failed'`
     // outcome (lock held elsewhere) without needing GitHub network access —
     // withCloneLock returns { ran: false } before any API call is made, so
