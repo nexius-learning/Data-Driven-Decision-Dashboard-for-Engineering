@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process'
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, afterEach, describe, expect, it } from 'vitest'
 import { createDb, runMigrations } from '~/db/client'
@@ -103,24 +103,4 @@ describe('refresh CLI', () => {
     expect(stderr).toMatch(/already running/i)
   }, 30_000)
 
-  it('cli_clone_only_exits_one_when_clone_lock_held_elsewhere', async () => {
-    // Forces refreshLocalData's clone-only path to a genuine `status: 'failed'`
-    // outcome (lock held elsewhere) without needing GitHub network access —
-    // withCloneLock returns { ran: false } before any API call is made, so
-    // no pre-inserted sync_runs row or GitHub token is needed to trigger it.
-    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'cli-cloneonly-lockheld-'))
-    try {
-      const lockDir = path.join(root, '.clone-in-progress')
-      await mkdir(lockDir, { recursive: true })
-      await writeFile(path.join(lockDir, 'started-at'), new Date().toISOString(), 'utf8')
-
-      const { exitCode, stderr } = await runCli({ DASHBOARD_REPO_ROOT: root }, ['--clone-only'])
-
-      // Not an AlreadyRunningError — must NOT be treated as a clean skip.
-      expect(exitCode).toBe(1)
-      expect(stderr).not.toMatch(/already running/i)
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
-  }, 30_000)
 })

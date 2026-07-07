@@ -48,3 +48,28 @@ need no contention handling.
 - Post-run insight is per-phase totals only; there is no persisted per-repo timing history.
 - The CLI no longer prints a machine-readable JSON summary (no known consumer parsed it; exit
   codes are unchanged).
+- **Shared `kind` is the sole cross-process mutex.** Every `sync_runs` row — full or
+  `clone_only` — is inserted with `kind = 'collector_refresh'`, so the unique partial index
+  makes a full run and a clone-only run mutually exclusive exactly like two full runs. A prior
+  file-based lock (`src/collector/clone-lock.ts`) once backstopped the clone phase independently
+  of this guard; it was retired (NIM-4) once the bash and TypeScript implementations were
+  consolidated onto this single guard (NIM-1..NIM-3). Giving clone-only a distinct `kind` in a
+  future change would let a clone-only run and a full run both hold a `running` row
+  simultaneously and both clone into `repoRoot` concurrently, with nothing left to prevent the
+  resulting `.git` corruption — this invariant must hold for as long as the file lock stays gone.
+- **The DB guard alone does not make a concurrent fresh clone or repair into the same directory
+  safe; the filesystem layer does that independently — but this does not extend to `git fetch`
+  on an already-healthy clone.** `cloneOrUpdateRepository` (`src/collector/repo-clone.ts`) clones
+  or repairs into a temp directory under `repoRoot/.clone-tmp` and atomically renames the result
+  into place, rather than writing directly at the final path. This means even if the
+  single-flight guard is ever bypassed — e.g. a zombie reclaim (heartbeat older than
+  `ZOMBIE_TTL_SECONDS`) racing a still-alive writer whose orphaned `git` child process keeps
+  writing after its own process crashed — two concurrent fresh-clone or repair writers targeting
+  the same repo can still never produce a half-written `.git` directory; whichever finishes
+  first wins the rename and the other's temp clone is discarded. The steady-state `git fetch`
+  path (an already-healthy clone being updated, the common case once a repo is warm) still
+  writes directly into the final `target` and relies entirely on git's own internal locking
+  (per-ref lockfiles, content-addressed objects) rather than this rename scheme — a residual,
+  lower-probability risk (e.g. concurrent `auto-gc` pruning an object an in-flight fetch
+  references) that the deleted file lock used to also cover and that a future change would need
+  to address explicitly if it becomes a real problem.

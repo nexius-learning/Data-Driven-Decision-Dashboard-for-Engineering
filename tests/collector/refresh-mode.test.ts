@@ -163,37 +163,6 @@ describe('refresh mode', () => {
     }
   })
 
-  it('refresh_clone_only_fails_distinctly_when_clone_lock_held_elsewhere', async () => {
-    const root = await mkdtemp(path.join(process.cwd(), '.tmp', 'refresh-mode-cloneonly-lock-'))
-    const mappingPath = await writeMapping(root)
-    try {
-      // Simulate the bash clone-cron holding the shared file lock (fresh, not stale).
-      const lockDir = path.join(root, '.clone-in-progress')
-      await mkdir(lockDir, { recursive: true })
-      await writeFile(path.join(lockDir, 'started-at'), new Date().toISOString(), 'utf8')
-
-      vi.spyOn(GitHubClient.prototype, 'listOrgRepositories').mockResolvedValue([
-        { name: 'svc', archived: false },
-      ])
-      const cloneSpy = vi.spyOn(repoClone, 'cloneOrUpdateRepository').mockResolvedValue('cloned')
-
-      const summary = await refreshLocalData(
-        { databaseUrl: databaseUrl!, repoRoot: root, teamMappingPath: mappingPath, githubSyncOwner: 'org' },
-        { mode: 'clone-only' },
-      )
-
-      expect(cloneSpy).not.toHaveBeenCalled()
-      expect(summary.status).toBe('failed')
-
-      const [last] = await db.select().from(syncRuns).orderBy(desc(syncRuns.startedAt)).limit(1)
-      expect(last?.status).toBe('failed')
-      expect(last?.message).toBe('clone_lock_held_elsewhere')
-      expect(last?.phaseTimings).toEqual({})
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
-  })
-
   it('refresh_e2e_stub_sets_mode_to_clone_only_when_simulating_clone_only', async () => {
     vi.stubEnv('DASHBOARD_E2E_REFRESH_STUB', '1')
     try {

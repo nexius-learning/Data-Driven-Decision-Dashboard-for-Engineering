@@ -57,10 +57,9 @@ npm run collector:refresh -- --clone-only
 
 Runs only the **cloning_repositories** phase (org listing, team-mapping filtering, clone/update/repair) and records a `sync_runs` row with `mode = clone_only`, skipping scanning and PR/review/size sync entirely. Intended for lightweight pre-warm triggers (e.g. container start) rather than day-to-day use.
 
-- Mutually exclusive with a full refresh via the same single-flight guard: whichever starts second gets `AlreadyRunningError`, regardless of mode.
-- If another process is already cloning into the same `DASHBOARD_REPO_ROOT`, the run finishes with status **`failed`** and message `clone_lock_held_elsewhere` rather than falsely reporting success.
+- Mutually exclusive with a full refresh via the same single-flight guard: whichever starts second gets `AlreadyRunningError`, regardless of mode. This is the only cross-process guard — there is no separate file-based lock.
 - If **some** repos clone successfully and some fail, the run finishes with status **`partial`** and **exits 0** — the failure is visible on the Sync Errors page, not as a non-zero exit code or in `docker compose logs`. Only a **total** clone failure (zero repos succeed) finishes **`failed`** and exits 1.
-- Exits **0** when the failure is `AlreadyRunningError` (matching the old bash clone-cron's "skip cleanly" contract for a lock conflict) or when the run finishes `success`/`partial`; exits **1** when the run finishes `failed`, for any reason (total clone failure, or `clone_lock_held_elsewhere`).
+- Exits **0** when the failure is `AlreadyRunningError` (matching the old bash clone-cron's "skip cleanly" contract for a lock conflict) or when the run finishes `success`/`partial`; exits **1** when the run finishes `failed` for any other reason (a total clone failure).
 - Does not appear as an attachable run on the live web dashboard's Refresh button (only full refreshes do).
 
 ### `npm run db:import-github`

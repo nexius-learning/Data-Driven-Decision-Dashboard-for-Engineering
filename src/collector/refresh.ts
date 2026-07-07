@@ -2,10 +2,9 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { and, eq, max, sql } from 'drizzle-orm'
 
-import { withCloneLock } from '~/collector/clone-lock'
 import { GitHubClient } from '~/collector/github-client'
 import { discoverRepositories } from '~/collector/repo-discovery'
-import { cloneOrUpdateRepository } from '~/collector/repo-clone'
+import { clearCloneTmpDir, cloneOrUpdateRepository } from '~/collector/repo-clone'
 import { upsertPullRequests } from '~/collector/pull-request-store'
 import { upsertRepositories } from '~/collector/repository-store'
 import { isPrSizeSyncPartial, syncRepositoryPrSizes } from '~/collector/pr-size-sync'
@@ -267,69 +266,66 @@ export async function refreshLocalData(
       baseUrl: env.githubApiBaseUrl,
     })
 
-    // Phase: cloning_repositories — guarded by withCloneLock so at most one
-    // clone runs against repoRoot at a time; skip entirely if another run
-    // already holds it instead of racing it.
+    // Phase: cloning_repositories — runs directly under the pipeline's
+    // existing single-flight guard (the sync_runs claim above); no
+    // additional file-based lock layered on top. Shared kind
+    // ('collector_refresh') across every mode is what makes that guard a
+    // true cross-mode mutex — see docs/adr/0001-refresh-progress-and-single-flight.md.
+    // Clear any staging/stale directories a prior crashed run orphaned
+    // under .clone-tmp before cloning anything — single-flight guarantees
+    // we're the only run touching it right now.
+    await clearCloneTmpDir(repoRoot)
     const cloneStart = Date.now()
     let phaseDone = 0
-    let cloneTargetCount = 0
-    const cloneRun = await withCloneLock(repoRoot, async () => {
-      const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
-      const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
-      cloneTargetCount = cloneTargets.length
+    const orgRepos = await client.listOrgRepositories(env.githubSyncOwner)
+    const cloneTargets = orgRepos.filter((r) => !r.archived && shouldSyncRepo(r.name, mapping))
+    const cloneTargetCount = cloneTargets.length
 
-      await db
-        .update(syncRuns)
-        .set({ currentPhase: 'cloning_repositories', phaseTotal: cloneTargets.length, phaseDone: 0, inFlightRepos: [] })
-        .where(eq(syncRuns.id, syncRunId!))
-      opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
+    await db
+      .update(syncRuns)
+      .set({ currentPhase: 'cloning_repositories', phaseTotal: cloneTargets.length, phaseDone: 0, inFlightRepos: [] })
+      .where(eq(syncRuns.id, syncRunId))
+    opts?.onProgress?.({ type: 'phase_start', phase: 'cloning_repositories', total: cloneTargets.length })
 
-      await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
-        inFlight.add(repo.name)
-        try {
-          await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err)
-          await insertError(null, 'repo_clone', msg)
-        } finally {
-          phaseDone += 1
-          inFlight.delete(repo.name)
-          const snapshot = [...inFlight]
-          await db
-            .update(syncRuns)
-            .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
-            .where(eq(syncRuns.id, syncRunId!))
-          opts?.onProgress?.({
-            type: 'repo_done',
-            phase: 'cloning_repositories',
-            repo: repo.name,
-            done: phaseDone,
-            total: cloneTargets.length,
-            inFlightRepos: snapshot,
-            errorCount: localErrorCount,
-          })
-        }
-      })
+    await runWithConcurrency(cloneTargets, env.githubSyncConcurrency, async (repo) => {
+      inFlight.add(repo.name)
+      try {
+        await cloneOrUpdateRepository(repoRoot, env.githubSyncOwner, repo.name)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        await insertError(null, 'repo_clone', msg)
+      } finally {
+        phaseDone += 1
+        inFlight.delete(repo.name)
+        const snapshot = [...inFlight]
+        await db
+          .update(syncRuns)
+          .set({ phaseDone, inFlightRepos: snapshot, errorCount: localErrorCount })
+          .where(eq(syncRuns.id, syncRunId!))
+        opts?.onProgress?.({
+          type: 'repo_done',
+          phase: 'cloning_repositories',
+          repo: repo.name,
+          done: phaseDone,
+          total: cloneTargets.length,
+          inFlightRepos: snapshot,
+          errorCount: localErrorCount,
+        })
+      }
     })
-    if (cloneRun.ran) {
-      phaseTimings['cloning_repositories'] = Date.now() - cloneStart
-    }
+    phaseTimings['cloning_repositories'] = Date.now() - cloneStart
 
     if (mode === 'clone-only') {
       const cloneOnlyErrorCount = await countSyncErrors(db, syncRunId)
       const cloneSuccessCount = cloneTargetCount - cloneOnlyErrorCount
       let cloneOnlyStatus: 'success' | 'partial' | 'failed' = 'success'
-      let cloneOnlyMessage: string | null = null
-      if (!cloneRun.ran) {
-        cloneOnlyStatus = 'failed'
-        cloneOnlyMessage = 'clone_lock_held_elsewhere'
-      } else if (cloneTargetCount > 0 && cloneSuccessCount === 0 && cloneOnlyErrorCount > 0) {
+      if (cloneTargetCount > 0 && cloneSuccessCount === 0 && cloneOnlyErrorCount > 0) {
         cloneOnlyStatus = 'failed'
       } else if (cloneOnlyErrorCount > 0) {
         cloneOnlyStatus = 'partial'
       }
 
-      await finalizeSyncRun(db, syncRunId, phaseTimings, cloneOnlyStatus, cloneOnlyMessage, cloneOnlyErrorCount)
+      await finalizeSyncRun(db, syncRunId, phaseTimings, cloneOnlyStatus, null, cloneOnlyErrorCount)
       summary.syncErrors = cloneOnlyErrorCount
       summary.status = cloneOnlyStatus
       summary.phaseTimingsMs = phaseTimings
