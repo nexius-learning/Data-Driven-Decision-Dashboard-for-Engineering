@@ -263,6 +263,48 @@ describe('dashboard route', () => {
     })
   })
 
+  it('refresh_collision_attaches_to_the_other_run_instead_of_erroring', async () => {
+    // The other run starts *after* mount (unlike mount_attaches_to_live_running_run
+    // above) — the first poll (at mount) reports idle so the button starts as
+    // "Refresh"; only the click's own collision-handling poll sees it live. This
+    // isolates the fix in onRefresh from the already-covered mount-attach path.
+    const { getActiveSyncRunFn } = await import('../../src/server/source-functions')
+    const liveRun: ActiveSyncRun = {
+      currentPhase: 'cloning_repositories',
+      phaseDone: 40,
+      phaseTotal: 119,
+      inFlightRepos: ['resource-hub'],
+      errorCount: 0,
+      heartbeatAt: new Date(Date.now() - 1_000),
+      startedAt: new Date(Date.now() - 30_000),
+    }
+    let pollCalls = 0
+    useServerFnMock.mockImplementation(((fn: unknown) => {
+      if (fn === getActiveSyncRunFn) {
+        return () => {
+          pollCalls += 1
+          return Promise.resolve(pollCalls === 1 ? null : liveRun)
+        }
+      }
+      return () =>
+        Promise.resolve({
+          ok: false,
+          message: 'A refresh is already in progress. Try refreshing again in a moment.',
+          alreadyRunning: true,
+        })
+    }) as never)
+    const history = createMemoryHistory({ initialEntries: ['/'] })
+    const router = createRouter({ routeTree, history })
+    await router.load()
+    render(<RouterProvider router={router} />)
+    await screen.findByRole('button', { name: 'Refresh' })
+    screen.getByRole('button', { name: 'Refresh' }).click()
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Cloning repositories/i })).toBeDefined()
+    })
+    expect(screen.queryByRole('alert')).toBeNull()
+  })
+
   it('route_shows_refresh_error', async () => {
     useServerFnMock.mockImplementationOnce((_fn: unknown) => {
       void _fn

@@ -42,7 +42,7 @@ export const getDashboardData = createServerFn({ method: 'GET' })
 
 export type RefreshLocalDataResult =
   | { ok: true; summary: RefreshSummary }
-  | { ok: false; message: string }
+  | { ok: false; message: string; alreadyRunning: boolean }
 
 /**
  * Maps a refreshLocalData failure to the message shown on the dashboard. An
@@ -67,7 +67,8 @@ export const refreshLocalDataFn = createServerFn({ method: 'POST' }).handler(
       const summary = await refreshLocalData()
       return { ok: true, summary }
     } catch (e) {
-      return { ok: false, message: formatRefreshFailureMessage(e, e instanceof AlreadyRunningError) }
+      const alreadyRunning = e instanceof AlreadyRunningError
+      return { ok: false, message: formatRefreshFailureMessage(e, alreadyRunning), alreadyRunning }
     }
   },
 )

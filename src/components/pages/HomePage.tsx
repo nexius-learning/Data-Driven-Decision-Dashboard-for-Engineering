@@ -83,15 +83,33 @@ export function HomePage() {
   const onRefresh = async () => {
     setRefreshing(true)
     setRefreshError(null)
+    let attached = false
     try {
       const res = await refreshFn()
       if (!res.ok) {
+        // A collision with an already-running sync (e.g. the container's own
+        // clone-only startup job) isn't a dead end — that other run is real
+        // and progressing. Attach to it and show its live progress instead
+        // of just erroring out and going idle, which looked like nothing
+        // was happening even though something was.
+        if (res.alreadyRunning) {
+          const run = await pollFn().catch(() => null)
+          const state = deriveRefreshButtonState(run, Date.now(), ZOMBIE_TTL_MS)
+          if (state.status === 'running') {
+            setActiveRun(run)
+            attachedRef.current = true
+            attached = true
+            return
+          }
+        }
         setRefreshError(res.message)
         return
       }
       await router.invalidate()
     } finally {
-      setRefreshing(false)
+      if (!attached) {
+        setRefreshing(false)
+      }
     }
   }
 
