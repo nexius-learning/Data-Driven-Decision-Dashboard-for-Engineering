@@ -26,12 +26,11 @@ async function isStale(dir: string): Promise<boolean> {
 }
 
 /**
- * Runs `fn` while holding a lock shared with the bash clone-cron script
- * (scripts/docker/clone-github-org-repos.sh), which can clone into the same
- * `repoRoot` independently. Both sides use this same `mkdir`-based directory
- * as a portable, SMB-safe mutex — `mkdir` is atomic even over the Azure Files
- * mount both processes run against in production. Returns `{ ran: false }`
- * without calling `fn` if the other side currently holds the lock.
+ * Runs `fn` while holding a cloning lock, so at most one clone runs against
+ * `repoRoot` at a time. Uses a `mkdir`-based directory as a portable,
+ * SMB-safe mutex — `mkdir` is atomic even over the Azure Files mount this
+ * runs against in production. Returns `{ ran: false }` without calling `fn`
+ * if another run currently holds the lock.
  */
 export async function withCloneLock<T>(
   repoRoot: string,

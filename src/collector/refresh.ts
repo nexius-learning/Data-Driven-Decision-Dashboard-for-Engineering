@@ -267,9 +267,9 @@ export async function refreshLocalData(
       baseUrl: env.githubApiBaseUrl,
     })
 
-    // Phase: cloning_repositories — shared with the bash clone-cron script
-    // (scripts/docker/clone-github-org-repos.sh); skip entirely if it's
-    // already cloning into the same repoRoot instead of racing it.
+    // Phase: cloning_repositories — guarded by withCloneLock so at most one
+    // clone runs against repoRoot at a time; skip entirely if another run
+    // already holds it instead of racing it.
     const cloneStart = Date.now()
     let phaseDone = 0
     let cloneTargetCount = 0

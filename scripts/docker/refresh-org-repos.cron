@@ -1,10 +1,9 @@
-# Cron schedule for the dashboard refresh (PR metadata + reviews + PR
-# sizes). Installed into /etc/cron.d/ by the Dockerfile.
+# Cron schedule for the dashboard refresh (clone + PR metadata +
+# reviews + PR sizes). Installed into /etc/cron.d/ by the Dockerfile.
 #
-# Runs at 01:00 local TZ (set in the Dockerfile via ENV TZ). The 1-hour
-# offset from the 00:00 clone gives the clone time to finish on the
-# first run after a new repo appears in the org. Subsequent runs are
-# fast because clones are skipped if already on disk.
+# Runs at 01:00 local TZ (set in the Dockerfile via ENV TZ). The refresh
+# clones as its own first phase, so no separate clone cron is needed;
+# clones are skipped if already on disk, so most runs are fast.
 #
 # Job output is redirected to PID 1's stdout (Vite) so cron lines show
 # up in `docker compose logs app` alongside Vite's own output.
