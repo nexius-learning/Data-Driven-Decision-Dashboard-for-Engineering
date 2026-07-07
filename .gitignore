@@ -30,3 +30,7 @@ docker-compose.override.yml
 docker-compose.override.yaml
 compose.override.yml
 compose.override.yaml
+
+# Claude Code / Brooks-Lint local session artifacts — not part of the project.
+.brooks-lint-history.json
+.claude/
