@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { desc } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, type MockInstance, vi } from 'vitest'
 
 import { GitHubClient } from '~/collector/github-client'
@@ -191,6 +191,33 @@ describe('refresh mode', () => {
       expect(last?.phaseTimings).toEqual({})
     } finally {
       await rm(root, { recursive: true, force: true })
+    }
+  })
+
+  it('refresh_e2e_stub_sets_mode_to_clone_only_when_simulating_clone_only', async () => {
+    vi.stubEnv('DASHBOARD_E2E_REFRESH_STUB', '1')
+    try {
+      const summary = await refreshLocalData({ databaseUrl: databaseUrl! }, { mode: 'clone-only' })
+      expect(summary.status).toBe('success')
+      const stubRows = await db.select().from(syncRuns).where(eq(syncRuns.message, 'e2e_stub'))
+      expect(stubRows.length).toBeGreaterThanOrEqual(1)
+      expect(stubRows[0]?.mode).toBe('clone_only')
+    } finally {
+      await db.delete(syncRuns).where(eq(syncRuns.message, 'e2e_stub'))
+      vi.unstubAllEnvs()
+    }
+  })
+
+  it('refresh_e2e_stub_defaults_to_mode_full_when_simulating_a_full_refresh', async () => {
+    vi.stubEnv('DASHBOARD_E2E_REFRESH_STUB', '1')
+    try {
+      await refreshLocalData({ databaseUrl: databaseUrl! })
+      const stubRows = await db.select().from(syncRuns).where(eq(syncRuns.message, 'e2e_stub'))
+      expect(stubRows.length).toBeGreaterThanOrEqual(1)
+      expect(stubRows[0]?.mode).toBe('full')
+    } finally {
+      await db.delete(syncRuns).where(eq(syncRuns.message, 'e2e_stub'))
+      vi.unstubAllEnvs()
     }
   })
 })

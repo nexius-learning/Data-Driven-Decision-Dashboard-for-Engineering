@@ -156,6 +156,7 @@ export async function refreshLocalData(
         id: newRunId,
         kind: 'collector_refresh',
         status: 'success',
+        mode: dbMode,
         startedAt,
         finishedAt: new Date(),
         message: 'e2e_stub',
