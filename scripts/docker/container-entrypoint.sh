@@ -18,6 +18,16 @@
 
 set -euo pipefail
 
+# 0. /repos is an Azure Files SMB mount, which reports directory ownership
+#    that doesn't match this (root) process's UID. Since Git 2.35.2, git
+#    refuses to operate inside a repo it considers "dubiously owned" by
+#    another user, even for root (CVE-2022-24765 mitigation) — every
+#    `git remote get-url` read against an already-cloned repo failed this
+#    check and was swallowed into a silent null by getGitOriginUrl,
+#    marking every repo `metadata_incomplete` and emptying the team
+#    dropdown despite clones succeeding. Trust everything under /repos.
+git config --global --add safe.directory '*'
+
 # 1. Dump the env keys the clone + refresh scripts need into a sourceable
 #    file. Single-quote values so embedded special chars survive (GitHub
 #    PATs are [A-Za-z0-9_] and our other values have no quotes today;

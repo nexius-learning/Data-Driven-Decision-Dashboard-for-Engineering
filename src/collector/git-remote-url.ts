@@ -15,7 +15,16 @@ export async function getGitOriginUrl(repoPath: string): Promise<string | null> 
     })
     const trimmed = stdout.trim()
     return trimmed === '' ? null : trimmed
-  } catch {
+  } catch (err) {
+    // A missing remote is the expected, silent case (not a git repo, or a
+    // repo with no `origin`). Anything else — e.g. git refusing the repo
+    // as "dubiously owned" on a mounted share — is a real failure that
+    // silently emptied every repo's owner/repo metadata before this log
+    // line existed, so it must not disappear the same way again.
+    const stderr = typeof err === 'object' && err !== null && 'stderr' in err ? String(err.stderr).trim() : ''
+    if (stderr && !/does not have a remote/i.test(stderr) && !/not a git repository/i.test(stderr)) {
+      console.warn(`[git-remote-url] failed to read origin for ${repoPath}: ${stderr}`)
+    }
     return null
   }
 }
