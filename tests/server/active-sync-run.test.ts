@@ -84,14 +84,24 @@ describe('getActiveSyncRun', () => {
     expect(await getActiveSyncRun({ db })).toBeNull()
   })
 
-  it('getActiveSyncRun_ignores_running_clone_only_rows', async () => {
+  it('getActiveSyncRun_returns_running_clone_only_rows', async () => {
+    // A clone-only run holds the shared single-flight slot, so the Refresh
+    // button must attach to it and show live "Cloning repositories" progress
+    // rather than colliding with an invisible run and erroring out.
     await db.insert(syncRuns).values({
       kind: 'collector_refresh',
       status: 'running',
       mode: 'clone_only',
       startedAt: new Date(),
       errorCount: 0,
+      currentPhase: 'cloning_repositories',
+      phaseDone: 4,
+      phaseTotal: 20,
     })
-    expect(await getActiveSyncRun({ db })).toBeNull()
+    const result = await getActiveSyncRun({ db })
+    expect(result).not.toBeNull()
+    expect(result!.currentPhase).toBe('cloning_repositories')
+    expect(result!.phaseDone).toBe(4)
+    expect(result!.phaseTotal).toBe(20)
   })
 })

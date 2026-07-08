@@ -114,9 +114,11 @@ relies on git's own internal locking).
   full-sync failures from "last synced." The `mode` column replaces this with a plain equality
   check set at claim time, correct regardless of how a run finishes.
 - **Reject a second caller everywhere while a run is active** — rejected for the UI, where
-  attaching to an in-flight run is the better experience (see ADR 0001); a clone-only run is
-  additionally hidden from the attachable "active run" view entirely via the `mode = 'full'` filter
-  on `getActiveSyncRun`, rather than shown and then rejected.
+  attaching to an in-flight run is the better experience (see ADR 0001), and rejected for a
+  clone-only run too: the Refresh button attaches to a running clone-only run and shows its live
+  "Cloning repositories" progress rather than rejecting it. (This originally went the other way — a
+  clone-only run was hidden from the attachable "active run" view via a `mode = 'full'` filter on
+  `getActiveSyncRun`. See the amendment below.)
 
 ## Consequences
 
@@ -136,3 +138,16 @@ relies on git's own internal locking).
 - The shared-`kind` invariant above is now the only thing standing between a future change and
   reintroduced concurrent-clone corruption; it must be treated as load-bearing, not incidental,
   by anyone adding a new run kind or mode to `sync_runs`.
+
+## Amendment: clone-only runs are visible to the live-progress view
+
+The `mode = 'full'` filter on `getActiveSyncRun` was removed. Hiding clone-only runs from the
+attachable "active run" view was inconsistent with the collision-attach behavior added afterward
+(ADR 0001's "attach to the other run on a Refresh collision"): because the single-flight mutex is
+shared across modes, the collision a user hits on Refresh is almost always with the container's
+clone-only startup job — the exact run the filter excluded. The attach lookup returned `null`, so
+the button fell through to an "A refresh is already in progress" error with no visible cause,
+instead of showing the clone's live progress. `getActiveSyncRun` now returns the running run
+regardless of `mode`, so both mount and refresh-click collisions display "Cloning repositories
+X/Y". The freshness / "last synced" queries above remain `mode = 'full'` — a clone-only run still
+syncs no PR metadata and must never appear as "last synced"; only the live-progress lookup changed.
